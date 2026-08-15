@@ -102,8 +102,53 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .sem{display:inline-block;font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:4px;margin-right:5px;vertical-align:1px}
 .sem.s1{background:var(--teal-bg);color:var(--teal)}
 .sem.s2{background:#e4eef7;color:var(--blue)}
+.nsec{font-size:12px;font-weight:800;color:var(--teal);margin:12px 0 4px;letter-spacing:.03em}
+.nline{font-size:13px;line-height:1.9;color:var(--ink2)}
+.nline b{color:var(--ink);font-weight:800;margin-right:2px}
+.nline.sm{font-size:12.5px;color:var(--muted)}
+.nline.sm b{color:var(--ink2);font-weight:700}
+.ntbl td:first-child{width:130px}
+.okmark{font-size:11.5px;font-weight:700;color:var(--teal);background:var(--teal-bg);padding:1px 6px;border-radius:5px;margin-left:5px}
+.difmark{font-size:11.5px;font-weight:800;color:var(--red);background:var(--red-bg);padding:1px 6px;border-radius:5px;margin-left:5px}
 .rng{margin-top:5px;padding:7px 9px;background:var(--surface2);border-radius:7px;font-size:12.5px;line-height:1.65}
 .rng b{color:var(--teal);font-weight:800;margin-right:3px}
+
+/* 상세 — 오른쪽에 NEIS 달력 칸 */
+.panel.wide{width:min(1140px,calc(100% - 24px))}
+.pcols{display:flex;align-items:flex-start}
+.pb{flex:1 1 auto;min-width:0}
+.pside{flex:0 0 0;width:0;overflow:hidden;transition:none;border-left:1px solid var(--line);
+  padding:0;align-self:stretch;background:#fbfcfc}
+.panel.wide .pside{flex:0 0 430px;width:430px;padding:14px 16px 22px}
+.topbar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:13px}
+.topbar .btn{margin-left:auto;padding:7px 13px;font-size:12.5px}
+.nshead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
+.nshead b{font-size:14px;font-weight:800}
+/* 작은 달력 12장 */
+.mcwrap{display:grid;grid-template-columns:repeat(3,1fr);gap:9px 8px;margin-top:12px}
+.mc{background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 5px 6px}
+.mch{font-size:11px;font-weight:800;color:var(--ink2);text-align:center;margin-bottom:3px}
+table.mct{width:100%;border-collapse:collapse;table-layout:fixed}
+table.mct th{font-size:8.5px;font-weight:700;color:var(--muted);padding:0 0 2px;line-height:1}
+table.mct th.s{color:#a33a3a} table.mct th.a{color:#2b5f8a}
+table.mct td{font-size:9.5px;text-align:center;padding:1.5px 0;line-height:1.25;
+  color:var(--ink2);border-radius:3px}
+table.mct td.o{color:transparent}
+table.mct td.e-exam{background:#f9dcdc;color:#8f2f2f;font-weight:800}
+table.mct td.e-vac{background:#d9ece7;color:#0d6858;font-weight:800}
+table.mct td.e-mock{background:#fce7d2;color:#8c4b0e;font-weight:800}
+table.mct td.e-etc{background:#e8ecec;color:#5b6b68;font-weight:700}
+.mcleg{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.lg{font-size:11px;font-weight:800;padding:2px 8px;border-radius:5px}
+.lg.e-exam{background:#f9dcdc;color:#8f2f2f} .lg.e-vac{background:#d9ece7;color:#0d6858}
+.lg.e-mock{background:#fce7d2;color:#8c4b0e} .lg.e-etc{background:#e8ecec;color:#5b6b68}
+@media(max-width:900px){
+  .panel.wide{width:min(720px,calc(100% - 24px))}
+  .pcols{flex-direction:column}
+  .panel.wide .pside{flex:1 1 auto;width:100%;border-left:none;border-top:1px solid var(--line)}
+  .mcwrap{grid-template-columns:repeat(2,1fr)}
+}
+
 /* 내보내기 폼 */
 .fl{display:block;font-size:12px;font-weight:800;color:var(--muted);margin:15px 0 6px;letter-spacing:.04em}
 .fl:first-child{margin-top:0}
@@ -966,7 +1011,99 @@ var NEIS = (function(){
       return out;
     });
   }
-  return {on:on, schedule:schedule, codeOf:codeOf};
+  /* 이어진 날짜를 하나로 묶는다 — 「중간시험」이 나흘이면 한 줄이 된다 */
+  function merge(rows){
+    var by={};
+    rows.forEach(function(x){
+      var k=x.n+'|'+x.g.join('');
+      (by[k]=by[k]||[]).push(x);
+    });
+    var out=[];
+    Object.keys(by).forEach(function(k){
+      var list=by[k].slice().sort(function(a,b){ return a.d<b.d?-1:1; });
+      var s=list[0], prev=list[0];
+      for(var i=1;i<=list.length;i++){
+        var cur=list[i];
+        var gap = cur ? (dnum(cur.d)-dnum(prev.d)) : 99;
+        if(gap>1){
+          out.push({n:s.n, g:s.g, from:s.d, to:prev.d});
+          s=cur;
+        }
+        prev=cur;
+      }
+    });
+    return out.sort(function(a,b){ return a.from<b.from?-1:1; });
+  }
+  function dnum(d){
+    var y=+d.slice(0,4), m=+d.slice(4,6), dd=+d.slice(6,8);
+    return Math.floor(Date.UTC(y,m-1,dd)/86400000);
+  }
+  /* 종류로 가른다 */
+  function bucket(n){
+    if(/중간|기말|지필|정기고사|평가고사/.test(n)) return 'exam';
+    if(/방학|개학|종업|졸업|입학/.test(n)) return 'vac';
+    if(/모의|학력평가|수능/.test(n)) return 'mock';
+    return 'etc';
+  }
+  return {on:on, schedule:schedule, codeOf:codeOf, merge:merge, bucket:bucket};
+})();
+</script>
+<script>/* ===== NEIS 일정 — 작은 달력 12장 ===== */
+var NEISVIEW = (function(){
+  var W=['일','월','화','수','목','금','토'];
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function ymd(d){ return {y:+d.slice(0,4), m:+d.slice(4,6), d:+d.slice(6,8)}; }
+
+  /* 날짜 → [행사…] */
+  function byDay(rows){
+    var m={};
+    rows.forEach(function(x){ (m[x.d]=m[x.d]||[]).push(x); });
+    return m;
+  }
+  function kindOf(list){
+    var k=['exam','vac','mock','etc'];
+    for(var i=0;i<k.length;i++){
+      for(var j=0;j<list.length;j++) if(NEIS.bucket(list[j].n)===k[i]) return k[i];
+    }
+    return 'etc';
+  }
+  function monthCal(y,m,map){
+    var first=new Date(y,m-1,1), start=new Date(first); start.setDate(1-first.getDay());
+    var t=new Date(start), h='<div class="mc"><div class="mch">'+y+'.'+m+'</div><table class="mct">';
+    h+='<tr>'+W.map(function(w,i){ return '<th class="'+(i===0?'s':i===6?'a':'')+'">'+w+'</th>'; }).join('')+'</tr>';
+    for(var r=0;r<6;r++){
+      h+='<tr>';
+      for(var c=0;c<7;c++){
+        var inM=(t.getMonth()===m-1);
+        var key=t.getFullYear()+('0'+(t.getMonth()+1)).slice(-2)+('0'+t.getDate()).slice(-2);
+        var ev=inM?(map[key]||[]):[];
+        var cls=[]; if(!inM) cls.push('o');
+        if(ev.length) cls.push('e-'+kindOf(ev));
+        var tip = ev.length ? ' title="'+esc(ev.map(function(x){return x.n;}).join(' · '))+'"' : '';
+        h+='<td class="'+cls.join(' ')+'"'+tip+'>'+(inM?t.getDate():'')+'</td>';
+        t.setDate(t.getDate()+1);
+      }
+      h+='</tr>';
+      if(r>=3 && t.getMonth()!==m-1) break;
+    }
+    return h+'</table></div>';
+  }
+  function render(rows){
+    var map=byDay(rows), h='<div class="mcwrap">';
+    for(var i=0;i<12;i++){
+      var mm=3+i, y=2026, m=mm;
+      if(mm>12){ y=2027; m=mm-12; }
+      h+=monthCal(y,m,map);
+    }
+    h+='</div>';
+    h+='<div class="mcleg">'
+      +'<span class="lg e-exam">시험</span><span class="lg e-vac">방학·개학</span>'
+      +'<span class="lg e-mock">모의고사</span><span class="lg e-etc">휴업·행사</span>'
+      +'<span class="hint" style="margin:0">날짜에 손을 올리면 행사 이름이 뜹니다</span></div>';
+    return h;
+  }
+  return {render:render};
 })();
 </script>
 
@@ -1106,8 +1243,11 @@ function open(key){
   function row(l,v){ return '<tr><td>'+l+'</td><td>'+(v?fmt(v)+dday(v):'<span class="none">-</span>')+'</td></tr>'; }
   function body(){
     var r=g.rows[gi], h='';
-    if(g.rows.length>1) h+='<div class="gtab">'+g.rows.map(function(rr,i){
+    var topbar='';
+    if(g.rows.length>1) topbar+='<div class="gtab" style="margin:0">'+g.rows.map(function(rr,i){
       return '<button data-g="'+i+'" class="'+(i===gi?'on':'')+'">'+esc(rr.grade||'전체')+'학년</button>';}).join('')+'</div>';
+    if(NEIS.on()) topbar+='<button class="btn ghost" id="neisb">NEIS 최신 일정</button>';
+    if(topbar) h+='<div class="topbar">'+topbar+'</div>';
     h+='<h3>방학 · 개학</h3><table>'+row('개학일(입학일)',r.open)+row('여름방학식',r.ss)+row('2학기 개학',r.se)
       +row('겨울방학식',r.ws_)+row('학년말 개학',r.we)+row('종업식',r.fin)+row('졸업식',r.grad)+'</table>';
     h+='<h3>정기시험</h3>';
@@ -1230,12 +1370,12 @@ function open(key){
       +(g.typ?'<span class="tag">'+esc(g.typ)+'</span>':'')
       +(g.est?'<span class="tag">'+esc(g.est)+'</span>':'')+'</div></div>'
       +'<button class="btn ghost" id="favb" style="align-self:center">'+(isFav(g)?'★ 해제':'☆ 즐겨찾기')+'</button>'
-      +'<button class="x" id="x">×</button></div><div class="pb">'+body()
+      +'<button class="x" id="x">×</button></div>'
+      +'<div class="pcols"><div class="pb">'+body()
       +'<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)">'
-      +(NEIS.on()?'<button class="btn ghost" id="neisb" style="width:100%;padding:12px;margin-bottom:8px">NEIS 최신 일정 보기</button>':'')
       +'<button class="btn ghost" id="sugb" style="width:100%;padding:12px">이 학교 정보 고쳐 주기 · 부교재 알려 주기</button>'
       +'<div class="hint" style="text-align:center">바뀐 시험일이나 부교재를 아시면 알려 주십시오. 확인 뒤 모두에게 반영됩니다.</div>'
-      +'</div></div>';
+      +'</div></div><div class="pside" id="neisside"></div></div>';
     p.querySelectorAll('.gtab button').forEach(function(b){ b.onclick=function(){ gi=+b.dataset.g; draw(); }; });
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
@@ -1243,32 +1383,50 @@ function open(key){
     var nb=document.getElementById('neisb');
     if(nb) nb.onclick=function(){
       var again = nb.dataset.done==='1';
-      nb.disabled=true; nb.textContent = again ? 'NEIS 에서 다시 받는 중…' : 'NEIS 에서 받는 중…';
-      var box=document.getElementById('neisbox');
-      if(box) box.innerHTML='<div class="hint" style="margin-top:10px">받는 중입니다…</div>';
+      nb.disabled=true; nb.textContent='받는 중…';
+      p.classList.add('wide');
+      document.getElementById('neisside').innerHTML='<div class="hint">NEIS 에서 받는 중입니다…</div>';
       NEIS.schedule(g.name, '20260301', '20270228', again).then(function(rows){
-        var box=document.getElementById('neisbox');
-        if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
-        if(!rows.length){ box.innerHTML='<div class="notice" style="margin-top:10px">NEIS 에 올라온 일정이 없습니다.</div>';
-          nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false; return; }
-        var key=rows.filter(function(x){ return /시험|고사|평가|방학|개학|졸업|종업|입학/.test(x.n); });
-        var t='<h3 style="margin-top:16px">NEIS 학사일정</h3><table class="bkrow">';
-        (key.length?key:rows).forEach(function(x){
-          var d=x.d, ds=d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
-          t+='<tr><td>'+fmt(ds)+'</td><td>'+esc(x.n)
-            +(x.g.length&&x.g.length<3?' <span class="pub">'+x.g.join('·')+'학년</span>':'')+'</td></tr>';
+        var side=document.getElementById('neisside');
+        if(!rows.length){ side.innerHTML='<div class="notice">NEIS 에 올라온 일정이 없습니다.</div>';
+          nb.textContent='NEIS 다시 받기'; nb.dataset.done='1'; nb.disabled=false; return; }
+        var mg=NEIS.merge(rows), exam=mg.filter(function(x){ return NEIS.bucket(x.n)==='exam'; });
+        function md(d){ return (+d.slice(4,6))+'/'+(+d.slice(6,8)); }
+        function wd(d){ return '일월화수목금토'[new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8)).getDay()]; }
+        function span(x){ return x.from===x.to ? md(x.from)+'('+wd(x.from)+')'
+                          : md(x.from)+'('+wd(x.from)+')~'+md(x.to)+'('+wd(x.to)+')'; }
+        var ours=[];
+        g.rows.forEach(function(rr){
+          if(!rr.ex) return;
+          ['1학기 중간','1학기 기말','2학기 중간','2학기 기말'].forEach(function(nm,ix){
+            var a0=rr.ex[ix]&&rr.ex[ix][0]; if(!a0) return;
+            ours.push({from:a0.replace(/-/g,''), to:(rr.ex[ix][1]||a0).replace(/-/g,'')});
+          });
         });
-        var now=new Date(), hh=('0'+now.getHours()).slice(-2), mm=('0'+now.getMinutes()).slice(-2);
-        t+='</table><div class="hint">출처 · 나이스 교육정보 개방 포털 · <b>'+hh+':'+mm+' 에 받아 온 것</b>입니다. '
-          +'학교가 고치면 여기에 먼저 반영됩니다. 시험·방학·평가만 골라 보여 드립니다 ('+rows.length+'건 중 '+key.length+'건)</div>';
-        box.innerHTML=t;
-        nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
+        function cmp(x){
+          if(ours.some(function(o){ return o.from===x.from; })) return '<span class="okmark">같음</span>';
+          var near=ours.filter(function(o){ return Math.abs(+o.from-+x.from)<1000; })[0];
+          return near ? '<span class="difmark">우리 자료 '+md(near.from)+'~'+md(near.to)+'</span>' : '';
+        }
+        var now=new Date(), hh=('0'+now.getHours()).slice(-2), mm2=('0'+now.getMinutes()).slice(-2);
+        var h2='<div class="nshead"><b>NEIS 학사일정</b><span class="hint" style="margin:0">'
+              +hh+':'+mm2+' 에 받음 · '+rows.length+'건</span></div>';
+        if(exam.length){
+          h2+='<table class="bkrow ntbl">'+exam.map(function(x){
+            var gg=(x.g.length&&x.g.length<3)?' <span class="pub">'+x.g.join('·')+'학년</span>':'';
+            return '<tr><td>'+esc(x.n)+gg+'</td><td>'+span(x)+' '+cmp(x)+'</td></tr>'; }).join('')+'</table>';
+        }
+        h2+=NEISVIEW.render(rows);
+        h2+='<div class="hint">출처 · 나이스 교육정보 개방 포털. 학교가 고치면 여기에 먼저 반영됩니다.</div>';
+        side.innerHTML=h2;
+        p.classList.add('wide');
+        nb.textContent='NEIS 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
       }).catch(function(e){
-        var box=document.getElementById('neisbox');
-        if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
-        box.innerHTML='<div class="notice" style="margin-top:10px;background:var(--red-bg);color:var(--red)">'
+        document.getElementById('neisside').innerHTML=
+          '<div class="notice" style="background:var(--red-bg);color:var(--red)">'
           +'NEIS 에서 받지 못했습니다 — '+esc(String(e.message||e))+'</div>';
-        nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
+        p.classList.add('wide');
+        nb.textContent='NEIS 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
       });
     };
   }
