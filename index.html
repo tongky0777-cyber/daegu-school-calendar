@@ -81,6 +81,10 @@ td{padding:8px 2px;border-bottom:1px solid var(--line);vertical-align:top}
 td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .notice{background:var(--blue-bg);color:var(--blue);border-radius:9px;padding:11px 13px;font-size:13px;line-height:1.6}
 .bkrow td:first-child{width:88px}
+.ht{margin:0 0 4px;font-size:14px;line-height:1.75;color:var(--ink2)}
+.ht b{color:var(--ink)}
+.hnote{display:inline-block;margin-top:4px;font-size:13px;color:var(--gold);font-weight:700}
+#hpanel h3{margin-top:20px}
 .bnote{font-size:12px;color:var(--gold);font-weight:700;margin-top:6px}
 /* 내보내기 폼 */
 .fl{display:block;font-size:12px;font-weight:800;color:var(--muted);margin:15px 0 6px;letter-spacing:.04em}
@@ -99,7 +103,6 @@ footer{max-width:1080px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color
   .panel.sm{top:auto;bottom:0;border-radius:14px 14px 0 0} }
 /* ===== 인쇄 ===== */
 #print{display:none}
-body.nosug #sugb, body.nosug #sugb + .hint{display:none}
 @media print{
   body{background:#fff}
   header,main,footer,.sheet{display:none !important}
@@ -130,7 +133,7 @@ table.prt thead{display:table-header-group}
       <h1>2026학년도 대구 학사일정 찾기</h1>
       <div class="sub">방학 · 개학 · 정기시험 · 학교 부교재를 학교 이름으로 찾습니다</div>
     </div>
-    <button class="btn ghost" id="expBtn" style="margin-left:auto">인쇄 · 내보내기</button>
+    <div style="margin-left:auto;display:flex;gap:7px"><button class="btn ghost" id="helpBtn">사용법</button><button class="btn ghost" id="expBtn">인쇄 · 내보내기</button></div>
   </div>
   <div class="searchrow">
     <input id="q" type="search" placeholder="학교 이름 (예: 시지고, 경신, 대구여자)" autocomplete="off">
@@ -146,6 +149,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
 <div class="sheet" id="esheet"><div class="panel sm" id="epanel"></div></div>
 <div class="sheet" id="ssheet"><div class="panel sm" id="spanel"></div></div>
+<div class="sheet" id="hsheet"><div class="panel" id="hpanel"></div></div>
 <div id="print"></div>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
    외부 CDN 에 기대지 않는다. 학교·학원 망에서 CDN 이 막혀도 동작한다. */
@@ -255,9 +259,9 @@ var SUGGEST=(function(){
   var READY=DEMO;                            // 서버가 살아 있으면 true
   if(!DEMO){
     fetch(API,{method:'GET'}).then(function(r){ READY=(r.status!==404); })
-      .catch(function(){ READY=false; })
-      .then(function(){ document.body.classList.toggle('nosug', !READY); });
+      .catch(function(){ READY=false; });
   }
+  READY=false;   // 2단계(자동 전송) 붙기 전까지는 복사해서 보내기
   var ME=null;
   try{ ME=JSON.parse(localStorage.getItem('dgcal.me')||'null'); }catch(e){}
 
@@ -307,8 +311,11 @@ var SUGGEST=(function(){
         +'<input type="text" id="sname" placeholder="이름" value="'+esc(ME&&ME.name||'')+'">'
         +'<input type="text" id="sorg" placeholder="학원" value="'+esc(ME&&ME.org||'')+'"></div>'
         +'<div class="hint">한 번 넣으면 이 브라우저에 기억해 둡니다. 누가 주신 정보인지 남기기 위한 것입니다.</div>'
-        +'<div class="acts"><button class="btn" id="ssend">보내기</button></div>'
-        +'<div class="hint">보내면 김병진T에게 바로 알림이 갑니다. 확인 뒤 화면에 반영되며, 그 전에는 아무에게도 보이지 않습니다.</div>';
+        +'<div class="acts"><button class="btn" id="ssend">'+(READY?'보내기':'내용 만들기')+'</button></div>'
+        +'<div class="hint">'+(READY
+          ? '보내면 김병진T에게 바로 알림이 갑니다. 확인 뒤 화면에 반영되며, 그 전에는 아무에게도 보이지 않습니다.'
+          : '누르면 아래에 정리된 글이 나옵니다. <b>복사해서 단톡방이나 문자로 보내 주십시오.</b> 확인 뒤 모두의 화면에 반영됩니다.')
+        +'</div>';
       return h;
     }
     function draw(){
@@ -340,20 +347,65 @@ var SUGGEST=(function(){
         if(!body.start && !(body.note||'').length){ alert('바뀐 날짜를 넣거나, 한마디에 사정을 적어 주십시오.'); return; }
       }
       try{ localStorage.setItem('dgcal.me', JSON.stringify({name:name,org:org})); }catch(e){}
-      var btn=document.getElementById('ssend'); btn.disabled=true; btn.textContent='보내는 중…';
-      if(DEMO){ setTimeout(function(){ done(body); },400); return; }
+      var btn=document.getElementById('ssend');
+      if(!READY || DEMO){ handoff(body); return; }
+      btn.disabled=true; btn.textContent='보내는 중…';
       fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
         .then(function(r){ if(!r.ok) throw 0; return r.json(); })
         .then(function(){ done(body); })
         .catch(function(){ btn.disabled=false; btn.textContent='보내기';
           alert('보내지 못했습니다. 잠시 뒤 다시 해 주십시오.'); });
     }
+    function textOf(b){
+      var L=['[학사일정 수정 제안]', b.school];
+      if(b.kind==='book'){
+        L.push('구분 : 부교재');
+        L.push('학년 : '+(b.grade||'-')+'학년');
+        L.push('과목 : '+(b.subject||'-'));
+        L.push('부교재 : '+b.book);
+      }else{
+        L.push('구분 : 시험일정 정정');
+        L.push('시험 : '+EXNAME[b.exam]);
+        if(g.rows.length>1) L.push('학년 : '+((g.rows[b.gradeIdx]||{}).grade||'-')+'학년');
+        L.push('바뀐 날짜 : '+(b.start? b.start+(b.end&&b.end!==b.start?' ~ '+b.end:'') : '(적지 않음)'));
+      }
+      if(b.note) L.push('근거 : '+b.note);
+      L.push('보낸 이 : '+b.name+' ('+b.org+')');
+      return L.join('\n');
+    }
+    function handoff(b){
+      var t=textOf(b);
+      p.innerHTML='<div class="ph"><h2>이 글을 보내 주십시오</h2><button class="x" id="sx">×</button></div>'
+        +'<div class="pb"><div class="hint" style="margin:0 0 9px">아래 글을 복사해서 <b>단톡방이나 문자로</b> 김병진T에게 보내 주십시오. 확인 뒤 모두의 화면에 반영됩니다.</div>'
+        +'<textarea id="sout" readonly style="width:100%;height:186px;padding:12px;border:1.5px solid var(--line);'
+        +'border-radius:9px;font-size:13.5px;line-height:1.7;resize:vertical;background:var(--surface2);color:var(--ink);'
+        +'font-family:inherit">'+esc(t)+'</textarea>'
+        +'<div class="acts"><button class="btn" id="scopy">글 복사하기</button>'
+        +'<button class="btn ghost" id="sclose">닫기</button></div>'
+        +'<div class="hint" id="scopied">복사한 뒤 단톡방에 붙여넣기 하시면 됩니다.</div></div>';
+      document.getElementById('sx').onclick=close;
+      document.getElementById('sclose').onclick=close;
+      document.getElementById('scopy').onclick=function(){
+        var ta=document.getElementById('sout');
+        ta.focus(); ta.select(); try{ ta.setSelectionRange(0,99999); }catch(e){}
+        var ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+        if(navigator.clipboard&&navigator.clipboard.writeText){
+          navigator.clipboard.writeText(ta.value).then(function(){ mark(true); },function(){ mark(ok); });
+        } else mark(ok);
+      };
+      function mark(ok){
+        document.getElementById('scopied').innerHTML = ok
+          ? '<b style="color:var(--teal)">복사했습니다.</b> 단톡방에 붙여넣기 하시면 됩니다.'
+          : '복사가 안 되면 글을 길게 눌러 직접 복사해 주십시오.';
+        var c=document.getElementById('scopy'); c.textContent='복사됨';
+        setTimeout(function(){ c.textContent='글 복사하기'; },1800);
+      }
+    }
     function done(b){
       p.innerHTML='<div class="ph"><h2>보냈습니다</h2><button class="x" id="sx">×</button></div>'
         +'<div class="pb"><div class="notice">'
         +'<b>'+esc(b.school)+'</b> 건이 김병진T에게 전달되었습니다.<br>'
         +'확인 뒤 화면에 반영됩니다. 그 전에는 다른 분께 보이지 않습니다.'
-        +(DEMO?'<br><br>※ 지금은 시안이라 실제로 보내지지는 않았습니다.':'')
         +'</div><div class="acts"><button class="btn ghost" id="sclose">닫기</button></div></div>';
       document.getElementById('sx').onclick=close;
       document.getElementById('sclose').onclick=close;
@@ -364,6 +416,47 @@ var SUGGEST=(function(){
   return {open:open, close:close, ready:function(){return READY;}};
 })();
 </script>
+<script>/* ===== 사용법 ===== */
+var HELP=(function(){
+  function open(){
+    var p=document.getElementById('hpanel');
+    p.innerHTML='<div class="ph"><h2>사용법</h2><button class="x" id="hx">×</button></div><div class="pb">'
+    +'<h3>1 · 학교 찾기</h3>'
+    +'<p class="ht">맨 위 칸에 학교 이름을 넣습니다. <b>일부만 넣어도 됩니다.</b> 「경신」만 쳐도 경신고등학교가 나옵니다.<br>'
+    +'초·중·고 단추로 걸러 볼 수 있고, 학교를 누르면 자세한 일정이 열립니다.</p>'
+    +'<h3>2 · 다음 일정이 먼저 보입니다</h3>'
+    +'<p class="ht">카드마다 <b>「다음 일정 · 2학기 중간고사 9월 29일(화) D-45」</b> 가 붙습니다. 오늘부터 며칠 남았는지 자동으로 셉니다.<br>'
+    +'<span class="dday dd-soon">D-9</span> 두 주 안 · <span class="dday dd-near">D-30</span> 한 달 반 안 · <span class="dday dd-far">D-90</span> 그 뒤</p>'
+    +'<h3>3 · 중학교와 고등학교는 학년이 나뉩니다</h3>'
+    +'<p class="ht">3학년은 고입·수능 때문에 일정이 다릅니다. 학교를 열면 <b>「1~2학년」 「3학년」 단추</b>가 따로 있습니다.</p>'
+    +'<h3>4 · 초등학교에 시험이 없는 것은 정상입니다</h3>'
+    +'<p class="ht">초등학교는 정기시험을 치지 않습니다. 자료가 빠진 것이 아닙니다.</p>'
+    +'<h3>5 · 자주 보는 학교는 별표로</h3>'
+    +'<p class="ht">카드 오른쪽 위 <b>☆</b> 를 누르면 담깁니다. 맨 위 <b>「즐겨찾기」</b> 를 누르면 담은 것만 보입니다.<br>'
+    +'<b>담은 목록은 이 브라우저에만 남습니다.</b> 학원 컴퓨터와 집 컴퓨터에 따로 담으셔야 합니다.</p>'
+    +'<h3>6 · 인쇄하고 엑셀로 받기</h3>'
+    +'<p class="ht">오른쪽 위 <b>「인쇄 · 내보내기」</b> 를 누릅니다.<br>'
+    +'<b>학원 이름</b>을 넣으면 인쇄물 맨 위에 찍힙니다. 한 번 넣으면 기억하니 다음부터 안 치셔도 됩니다.<br>'
+    +'<b>PDF</b> — 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 파일로 남습니다. A4 가로 표로 나옵니다.<br>'
+    +'<b>엑셀</b> — 바로 파일이 내려받아집니다. 정렬하거나 다른 표에 붙이실 수 있습니다.</p>'
+    +'<h3>7 · 늘 최신입니다</h3>'
+    +'<p class="ht">자료가 고쳐지면 <b>다음에 이 주소를 여는 순간 새것이 보입니다.</b> 따로 받으실 것이 없습니다.<br>'
+    +'화면 맨 아래 <b>「자료 판」</b> 날짜로 언제 것인지 확인하실 수 있습니다. 옛 날짜가 보이면 새로고침(F5)을 한 번 눌러 주십시오.</p>'
+    +'<h3>8 · 틀린 것을 보시면</h3>'
+    +'<p class="ht">학교가 시험 날짜를 바꾸는 일이 잦고, 부교재도 학년마다 다릅니다.<br>'
+    +'학교를 연 다음 맨 아래 <b>「이 학교 정보 고쳐 주기 · 부교재 알려 주기」</b> 를 누르십시오.<br>'
+    +'칸을 채우고 <b>「내용 만들기」</b> 를 누르면 정리된 글이 나옵니다. <b>복사해서 단톡방에 붙여넣어 주십시오.</b><br>'
+    +'<span class="hnote">한 분이 알려 주시면 모두가 덕을 봅니다.</span></p>'
+    +'<div class="notice" style="margin-top:18px">중요한 날짜는 학교 공지로 한 번 더 확인해 주십시오. 학교 사정으로 바뀔 수 있습니다.</div>'
+    +'</div>';
+    document.getElementById('hx').onclick=close;
+    document.getElementById('hsheet').classList.add('on');
+  }
+  function close(){ document.getElementById('hsheet').classList.remove('on'); }
+  return {open:open, close:close};
+})();
+</script>
+
 <script>(function(){
 var S=DATA.schools, BK=DATA.books;
 var TODAY=new Date(); TODAY.setHours(0,0,0,0);
@@ -633,14 +726,25 @@ document.getElementById('grid').onclick=function(e){
   if(s){ e.stopPropagation(); toggleFav(BYKEY[s.dataset.star]); render(); return; }
   var c=e.target.closest('.card'); if(c) open(c.dataset.k); };
 document.getElementById('expBtn').onclick=openExport;
+document.getElementById('helpBtn').onclick=HELP.open;
 document.getElementById('sheet').onclick=function(e){ if(e.target.id==='sheet') close(); };
 document.getElementById('esheet').onclick=function(e){ if(e.target.id==='esheet') closeExport(); };
-document.onkeydown=function(e){ if(e.key==='Escape'){ close(); closeExport(); } };
+document.onkeydown=function(e){
+  if(e.key!=='Escape') return;
+  // 맨 위에 열린 것 하나만 닫는다 (제안 창을 닫았는데 학교 창까지 닫히면 안 된다)
+  var order=[['ssheet',SUGGEST.close],['hsheet',HELP.close],['esheet',closeExport],['sheet',close]];
+  for(var i=0;i<order.length;i++){
+    if(document.getElementById(order[i][0]).classList.contains('on')){ order[i][1](); return; }
+  }
+};
+document.getElementById('hsheet').onclick=function(e){ if(e.target.id==='hsheet') HELP.close(); };
+document.getElementById('ssheet').onclick=function(e){ if(e.target.id==='ssheet') SUGGEST.close(); };
 document.getElementById('foot').innerHTML=
   '출처 · 대구광역시교육청 「'+esc(DATA.src)+'」 · 학교 '+LIST.length+'곳 수록<br>'
   +'부교재는 학원 자체 조사분(고등 '+Object.keys(BK).length+'개교)이며 학사일정과 출처가 다릅니다.<br>'
   +'즐겨찾기는 이 브라우저에만 저장됩니다. 다른 기기에서는 따로 담으셔야 합니다.<br>'
-  +'학교 사정으로 일정이 바뀔 수 있습니다. 중요한 날짜는 학교 공지로 확인해 주십시오.';
+  +'학교 사정으로 일정이 바뀔 수 있습니다. 중요한 날짜는 학교 공지로 확인해 주십시오.<br>'
+  +'<b style="color:var(--ink2)">자료 판 '+esc(DATA.built)+'</b> · 이 주소는 늘 최신본이 열립니다. 옛것이 보이면 새로고침(F5)을 눌러 주십시오.';
 render();
 })();
 </script>
