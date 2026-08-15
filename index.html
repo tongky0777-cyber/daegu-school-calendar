@@ -70,6 +70,12 @@ main{max-width:1080px;margin:0 auto;padding:14px 16px 60px}
 .x{margin-left:auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;
   width:30px;height:30px;font-size:16px;color:var(--ink2);cursor:pointer;flex:none}
 .pb{padding:14px 18px 26px}
+.dfil{margin-top:7px}
+.flabel{font-size:12px;font-weight:800;color:var(--muted);margin-right:2px;letter-spacing:.04em}
+.chip.dep.on{background:var(--gold);border-color:var(--gold);color:#3a2f06}
+.dfil .hint{margin:0 0 0 4px}
+.dsec{font-size:12px;font-weight:800;color:var(--teal);background:var(--teal-bg);
+  display:inline-block;padding:2px 9px;border-radius:6px;margin:10px 0 4px}
 .dtab{display:flex;gap:5px;margin-bottom:11px;flex-wrap:wrap}
 .dtab button{padding:6px 15px;font-size:13.5px;font-weight:800;border:1px solid var(--line);
   background:var(--surface);border-radius:8px;color:var(--ink2);cursor:pointer}
@@ -388,11 +394,12 @@ var SUGGEST=(function(){
     '중':['1학년','2학년','3학년','기타'],
     '초':['기타'], '특수':['기타'], '각종':['기타']
   };
-  var curD='수학';
+  var curD='수학';   // 창을 열 때 첫 화면에서 고른 교과를 따른다
   var EXNAME=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'];
 
   function open(g, tab){
     var p=document.getElementById('spanel'), kind=tab||'book';
+    if(typeof selDepts!=='undefined' && selDepts.length===1) curD=selDepts[0];
     var grades=g.rows.map(function(r){return r.grade||'-';});
     function form(){
       var h='';
@@ -418,10 +425,11 @@ var SUGGEST=(function(){
           +'<div class="checks" id="subbox"></div>'
           +'<label class="fl">교과서 출판사</label>'
           +'<input type="text" id="spub" placeholder="예: 비상교육 / 좋은책신사고 / 지학사">'
-          +'<div class="hint">모르시면 비워 두셔도 됩니다.</div>'
+          +'<div class="hint" id="pubnow">모르시면 비워 두셔도 됩니다.</div>'
           +'<label class="fl">부교재 이름</label>'
           +'<input type="text" id="sbook" placeholder="예: 올림포스 유형편 / 부교재 없음">'
-          +'<div class="hint">모르시면 비워 두셔도 됩니다. <b>과목만 등록됩니다.</b><br>'
+          +'<div class="hint" id="booknow">모르시면 비워 두셔도 됩니다.</div>'
+          +'<div class="hint"><b>비워 두시면 과목만 등록됩니다.</b><br>'
           +'그 학교가 <b>부교재를 안 쓰는 것</b>이면 「부교재 없음」이라고 적어 주십시오 — 비워 두는 것과 다릅니다.<br>'
           +'출판사와 부교재는 고른 과목에 한꺼번에 들어갑니다. 과목마다 다르면 따로 보내 주십시오.</div>';
       }else if(kind==='subj'){
@@ -463,11 +471,11 @@ var SUGGEST=(function(){
       }
       h+='<label class="fl">어떻게 아셨습니까 (한마디)</label>'
         +'<input type="text" id="snote" placeholder="예: 학생 시간표에서 확인 / 학교 가정통신문">'
-        +'<label class="fl">보내는 분 · 이 두 칸은 반드시 채워 주십시오</label>'
+        +'<label class="fl">보내는 분</label>'
         +'<div style="display:flex;gap:10px">'
-        +'<input type="text" id="sname" placeholder="이름" value="'+esc(ME&&ME.name||'')+'">'
-        +'<input type="text" id="sorg" placeholder="학원" value="'+esc(ME&&ME.org||'')+'"></div>'
-        +'<div class="hint">한 번 넣으면 이 브라우저에 기억해 둡니다. 누가 주신 정보인지 남기기 위한 것입니다.</div>'
+        +'<input type="text" id="sname" placeholder="이름 (성만 적으셔도 됩니다)" value="'+esc(ME&&ME.name||'')+'">'
+        +'<input type="text" id="sorg" placeholder="학원 (안 적으셔도 됩니다)" value="'+esc(ME&&ME.org||'')+'"></div>'
+        +'<div class="hint">누가 주신 정보인지 남기기 위한 것입니다. <b>이름만 적으셔도 됩니다.</b> 한 번 넣으면 이 브라우저가 기억합니다.</div>'
         +'<div class="acts"><button class="btn" id="ssend">'+(READY?'보내기':'내용 만들기')+'</button></div>'
         +'<div class="hint">'+(READY
           ? '보내면 김병진T에게 바로 알림이 갑니다. 확인 뒤 화면에 반영되며, 그 전에는 아무에게도 보이지 않습니다.'
@@ -525,12 +533,50 @@ var SUGGEST=(function(){
         };
         p.querySelectorAll('input[name=sgr],input[name=ssem]').forEach(function(x){ x.onchange=paint; });
         paint();
+        // 과목을 고르면 ★지금 등록된 값★ 을 칸에 미리 채운다 — 고치기가 된다
+        var fill=function(){
+          var gr=(p.querySelector('input[name=sgr]:checked')||{}).value;
+          var picked=Array.prototype.map.call(p.querySelectorAll('input[name=ssubs]:checked'),
+                                              function(x){return x.value;});
+          var pubEl=document.getElementById('spub'), bkEl=document.getElementById('sbook');
+          var nowP=document.getElementById('pubnow'), nowB=document.getElementById('booknow');
+          if(!picked.length){ if(nowP) nowP.innerHTML='모르시면 비워 두셔도 됩니다.'; return; }
+          var tb=DATA.textbook[g.name]||{};
+          var pubs=picked.map(function(s2){ return tb[s2]||''; });
+          var same = pubs.every(function(x){ return x===pubs[0]; });
+          if(nowP){
+            nowP.innerHTML = pubs[0]&&same
+              ? '지금 등록된 것 — <b>'+esc(pubs[0])+'</b>. 다르면 고쳐 주십시오.'
+              : (pubs.some(Boolean) ? '고른 과목마다 등록된 출판사가 다릅니다. 하나씩 보내 주십시오.'
+                                    : '아직 등록된 것이 없습니다. 모르시면 비워 두셔도 됩니다.');
+          }
+          if(pubEl && !pubEl.dataset.touched && same && pubs[0]) pubEl.value=pubs[0];
+          var bk=(DATA.books[g.name]||{})[gr];
+          var found=[];
+          if(bk) picked.forEach(function(s2){
+            (bk.items||[]).forEach(function(it){ if(it[0]===s2) found.push(it[1]); }); });
+          var sameB = found.length===picked.length && found.every(function(x){return x===found[0];});
+          if(nowB){
+            nowB.innerHTML = found.length
+              ? (sameB ? '지금 등록된 것 — <b>'+esc(found[0])+'</b>. 다르면 고쳐 주십시오.'
+                       : '고른 과목마다 등록된 부교재가 다릅니다 — '+esc(found.join(' / ')))
+              : '아직 등록된 것이 없습니다.';
+          }
+          if(bkEl && !bkEl.dataset.touched && sameB && found[0]) bkEl.value=found[0];
+        };
+        box.addEventListener('change', fill);
+        p.querySelectorAll('input[name=sgr],input[name=ssem]').forEach(function(x){
+          x.addEventListener('change', function(){ setTimeout(fill,0); }); });
+        ['spub','sbook'].forEach(function(id){
+          var el=document.getElementById(id);
+          if(el) el.oninput=function(){ el.dataset.touched='1'; };
+        });
       }
     }
     function send(){
       var name=(document.getElementById('sname').value||'').trim();
       var org=(document.getElementById('sorg').value||'').trim();
-      if(!name||!org){ alert('이름과 학원을 채워 주십시오.'); return; }
+      if(!name){ alert('이름을 적어 주십시오. 학원은 안 적으셔도 됩니다.'); return; }
       var body={school:g.name, lvl:g.lvl, kind:kind, dept:curD, name:name, org:org,
                 note:(document.getElementById('snote').value||'').trim()};
       if(kind==='book'){
@@ -539,6 +585,14 @@ var SUGGEST=(function(){
         body.subjects=Array.prototype.map.call(p.querySelectorAll('input[name=ssubs]:checked'),function(x){return x.value;});
         body.book=(document.getElementById('sbook').value||'').trim();
         body.pub=(document.getElementById('spub').value||'').trim();
+        // 지금 등록돼 있는 값 — 무엇을 고친 것인지 알아보려고 같이 담는다
+        var tb0=DATA.textbook[g.name]||{}, bk0=(DATA.books[g.name]||{})[body.grade];
+        var p0=body.subjects.map(function(x){return tb0[x]||'';});
+        body.pub0 = p0.every(function(x){return x===p0[0];}) ? p0[0] : '';
+        var f0=[];
+        if(bk0) body.subjects.forEach(function(x){ (bk0.items||[]).forEach(function(it){
+          if(it[0]===x) f0.push(it[1]); }); });
+        body.book0 = (f0.length===body.subjects.length && f0.every(function(x){return x===f0[0];})) ? f0[0] : '';
         if(!body.subjects.length){ alert('과목을 하나 이상 골라 주십시오.'); return; }
       }else if(kind==='subj'){
         body.grade=(p.querySelector('input[name=sgr3]:checked')||{}).value;
@@ -572,12 +626,20 @@ var SUGGEST=(function(){
       var L=['[학사일정 수정 제안]', b.school];
     if(b.dept) L.push('교과 : '+b.dept);
       if(b.kind==='book'){
-        var what=[]; if(b.pub) what.push('교과서'); if(b.book) what.push('부교재');
-        L.push('구분 : '+(what.length? what.join(' · ') : '배우는 과목'));
+        var pubCh = b.pub && b.pub!==b.pub0;
+        var bkCh  = b.book && b.book!==b.book0;
+        var what=[]; if(pubCh) what.push('교과서'); if(bkCh) what.push('부교재');
+        L.push('구분 : '+(what.length? what.join(' · ')+' 고침' : '배우는 과목'));
         L.push('학년 : '+(b.grade||'-')+'학년 '+(b.sem==='12'?'1·2학기':b.sem+'학기'));
         L.push('과목 : '+b.subjects.join(' · '));
-        L.push('교과서 : '+(b.pub || '(모름)'));
-        L.push('부교재 : '+(b.book || '(모름)'));
+        function line(label, now, val){
+          if(!val) return label+' : (모름)';
+          if(!now)  return label+' : '+val;
+          if(now===val) return label+' : '+val+'  (그대로)';
+          return label+' : '+now+'  →  ★'+val;
+        }
+        L.push(line('교과서', b.pub0, b.pub));
+        L.push(line('부교재', b.book0, b.book));
       }else if(b.kind==='subj'){
         L.push('구분 : 배우는 과목');
         L.push('학년 : '+(b.grade||'-')+'학년');
@@ -596,7 +658,7 @@ var SUGGEST=(function(){
         L.push('바뀐 날짜 : '+(b.start? b.start+(b.end&&b.end!==b.start?' ~ '+b.end:'') : '(적지 않음)'));
       }
       if(b.note) L.push('근거 : '+b.note);
-      L.push('보낸 이 : '+b.name+' ('+b.org+')');
+      L.push('보낸 이 : '+b.name+(b.org? ' ('+b.org+')':''));
       return L.join('\n');
     }
     function handoff(b){
@@ -864,6 +926,7 @@ var S=DATA.schools, BK=DATA.books;
 var TODAY=new Date(); TODAY.setHours(0,0,0,0);
 var LV=['전체','초','중','고','특수','각종'], curLv='전체', curOff='전체', q='', favOnly=false;
 var VIEW='list';
+var selDepts=[];   // 빈 배열 = 전 교과
 
 /* ---------- 저장소 (막혀 있어도 죽지 않게) ---------- */
 var MEM={};
@@ -994,10 +1057,6 @@ function open(key){
   function row(l,v){ return '<tr><td>'+l+'</td><td>'+(v?fmt(v)+dday(v):'<span class="none">-</span>')+'</td></tr>'; }
   function body(){
     var r=g.rows[gi], h='';
-    if(g.lvl==='고'||g.lvl==='중'){
-      h+='<div class="dtab">'+DEPTS.map(function(d){
-        return '<button data-d="'+d+'" class="'+(d===curDept?'on':'')+'">'+d+'</button>';}).join('')+'</div>';
-    }
     if(g.rows.length>1) h+='<div class="gtab">'+g.rows.map(function(rr,i){
       return '<button data-g="'+i+'" class="'+(i===gi?'on':'')+'">'+esc(rr.grade||'전체')+'학년</button>';}).join('')+'</div>';
     h+='<h3>방학 · 개학</h3><table>'+row('개학일(입학일)',r.open)+row('여름방학식',r.ss)+row('2학기 개학',r.se)
@@ -1012,79 +1071,105 @@ function open(key){
       h+=t+'</table>';
       if(!any) h+='<div class="notice" style="margin-top:9px">이 학교는 정기시험 일정이 기재되어 있지 않습니다.</div>';
     }
-    // 교과서 출판사 — 학교가 채택하는 것이라 학년과 무관하다
-    var tb=TB[g.name];
+    // ── 교과별 자료 — 첫 화면에서 고른 교과만, 안 고르면 전 교과 ──
+    var DEP = selDepts.length ? selDepts.slice() : DEPTS.slice();
+    var many = DEP.length>1;
+    var tb=TB[g.name], b=BK[g.name], rall=RANGE[g.name];
+    function dh(d){ return many ? '<div class="dsec">'+esc(d)+'</div>' : ''; }
+
     if(g.lvl==='고'||g.lvl==='중'){
-      var order=subjectsFor(g.lvl, curDept);
-      var mine = tb ? Object.keys(tb).filter(function(k){ return deptOf(k)===curDept; }) : [];
-      mine.sort(function(x,y){ var i=order.indexOf(x), j=order.indexOf(y);
-        return (i<0?99:i)-(j<0?99:j); });
+      // 교과서 출판사
+      var secs=[], none=[];
+      DEP.forEach(function(d){
+        var order=subjectsFor(g.lvl,d);
+        var mine = tb ? Object.keys(tb).filter(function(k){ return deptOf(k)===d; }) : [];
+        mine.sort(function(x,y){ var i=order.indexOf(x), j=order.indexOf(y); return (i<0?99:i)-(j<0?99:j); });
+        if(!mine.length){ none.push(d); return; }
+        secs.push(dh(d)+'<table class="bkrow">'
+          +mine.map(function(k){ return '<tr><td>'+esc(k)+'</td><td>'+esc(tb[k])+'</td></tr>'; }).join('')
+          +'</table>');
+      });
       h+='<h3>교과서 출판사</h3>';
-      if(mine.length){
-        h+='<table class="bkrow">';
-        mine.forEach(function(k){ h+='<tr><td>'+esc(k)+'</td><td>'+esc(tb[k])+'</td></tr>'; });
-        h+='</table><div class="hint">괄호 안은 대표저자입니다. 출처 · 대구광역시교육청 교과서 목록 (고 2026.05.09 · 중 2026.07.03)</div>';
+      if(secs.length){
+        h+=secs.join('')
+          +'<div class="hint">괄호 안은 대표저자입니다. 출처 · 대구광역시교육청 교과서 목록 (고 2026.05.09 · 중 2026.07.03)'
+          +(none.length?'<br>아직 없는 교과 — '+esc(none.join(' · ')):'')+'</div>';
       } else {
-        h+='<div class="notice">'+esc(curDept)+' 교과서는 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
+        h+='<div class="notice">'+esc(DEP.join(' · '))+' 교과서가 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
       }
     }
-    // 배우는 과목 · 시험범위 — 학년(1·2·3)마다 다르므로 학교 단위로 따로 낸다
+
     if(g.lvl==='고'){
-      h+='<h3>배우는 과목</h3>';
-      var gs=['1','2','3'], anyS=false, ts='<table class="bkrow">';
-      gs.forEach(function(gr){
-        var sj0=subjectsOf(g.name,gr,curDept); if(!sj0) return;
-        var sj={'1':(sj0['1']||[]).filter(function(x){return deptOf(x)===curDept;}),
-                '2':(sj0['2']||[]).filter(function(x){return deptOf(x)===curDept;})};
-        if(!sj['1'].length && !sj['2'].length) return;
-        anyS=true;
-        var withPub=function(list){
-          if(!list||!list.length) return '-';
-          return list.map(function(x){ var p=pubOf(g.name,gr,x);
-            return esc(x)+(p?' <span class="pub">'+esc(p)+'</span>':''); }).join(' · ');
-        };
-        ts+='<tr><td>'+gr+'학년</td><td>'
-          +'<b>1학기</b> '+withPub(sj['1'])+'<br>'
-          +'<b>2학기</b> '+withPub(sj['2'])+'</td></tr>';
+      // 배우는 과목
+      var out=[], noneS=[];
+      DEP.forEach(function(d){
+        var rows='';
+        ['1','2','3'].forEach(function(gr){
+          var sj0=subjectsOf(g.name,gr,d); if(!sj0) return;
+          var s1=(sj0['1']||[]).filter(function(x){return deptOf(x)===d;});
+          var s2=(sj0['2']||[]).filter(function(x){return deptOf(x)===d;});
+          if(!s1.length && !s2.length) return;
+          var withPub=function(list){
+            if(!list.length) return '-';
+            return list.map(function(x){ var p=pubOf(g.name,gr,x);
+              return esc(x)+(p?' <span class="pub">'+esc(p)+'</span>':''); }).join(' · ');
+          };
+          rows+='<tr><td>'+gr+'학년</td><td><b>1학기</b> '+withPub(s1)+'<br><b>2학기</b> '+withPub(s2)+'</td></tr>';
+        });
+        if(rows) out.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
+        else noneS.push(d);
       });
-      if(anyS){
-        h+=ts+'</table>';
-        h+='<div class="hint">회색 표는 <b>교과서 출판사</b>입니다. 1학년은 전국이 같아 자동으로 들어갑니다.'
-          +' 2·3학년은 학교마다 달라 <b>선생님들이 알려 주시는 대로 채워집니다.</b></div>';
+      h+='<h3>배우는 과목</h3>';
+      if(out.length){
+        h+=out.join('')
+          +'<div class="hint">회색 표는 <b>교과서 출판사</b>입니다. 1학년은 전국이 같아 자동으로 들어갑니다.'
+          +' 2·3학년은 학교마다 달라 <b>선생님들이 알려 주시는 대로 채워집니다.</b>'
+          +(noneS.length?'<br>아직 없는 교과 — '+esc(noneS.join(' · ')):'')+'</div>';
       } else {
-        h+='<div class="notice">이 학교 '+esc(curDept)+' 과목이 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
+        h+='<div class="notice">이 학교 '+esc(DEP.join(' · '))+' 과목이 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
       }
       // 시험범위
-      var rall=RANGE[g.name];
-      h+='<h3>시험범위</h3>';
-      if(rall){
-        var tr='<table class="bkrow">';
-        ['1','2','3'].forEach(function(gr){
+      var rs=[];
+      DEP.forEach(function(d){
+        var rows='';
+        if(rall) ['1','2','3'].forEach(function(gr){
           var byEx=rall[gr]; if(!byEx) return;
           ['0','1','2','3'].forEach(function(ei){
-            var rr=(byEx[ei]||[]).filter(function(x){return deptOf(x[0])===curDept;});
+            var rr=(byEx[ei]||[]).filter(function(x){return deptOf(x[0])===d;});
             if(!rr.length) return;
-            tr+='<tr><td>'+gr+'학년<div class="hint" style="margin:2px 0 0">'+names[+ei]+'</div></td><td>'
+            rows+='<tr><td>'+gr+'학년<div class="hint" style="margin:2px 0 0">'+names[+ei]+'</div></td><td>'
               +rr.map(function(x){ return '<b>'+esc(x[0])+'</b> '+esc(x[1]); }).join('<br>')+'</td></tr>';
           });
         });
-        h+=tr+'</table>';
-      } else {
-        h+='<div class="notice">아직 등록되지 않았습니다. 가정통신문이나 학교 공지로 아시는 범위가 있으면 아래에서 알려 주십시오.</div>';
+        if(rows) rs.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
+      });
+      h+='<h3>시험범위</h3>';
+      h += rs.length ? rs.join('')
+        : '<div class="notice">아직 등록되지 않았습니다. 가정통신문이나 학교 공지로 아시는 범위가 있으면 아래에서 알려 주십시오.</div>';
+    }
+
+    // 부교재
+    if(b){
+      var bs=[];
+      DEP.forEach(function(d){
+        var rows='';
+        Object.keys(b).sort().forEach(function(gr){
+          var its=b[gr].items.filter(function(x){return deptOf(x[0])===d;}).sort(function(p,q){
+            var sp=semesterOf(g.name,gr,p[0],p[2])||'9', sq=semesterOf(g.name,gr,q[0],q[2])||'9';
+            return sp<sq?-1:sp>sq?1:0; });
+          if(!its.length) return;
+          rows+='<tr><td>'+esc(gr)+'학년</td><td>'+its.map(function(x){
+            return semTag(semesterOf(g.name,gr,x[0],x[2]))+'<b>'+esc(x[0])+'</b> · '+esc(x[1]);}).join('<br>')
+            +(b[gr].note?'<div class="bnote">'+esc(b[gr].note)+'</div>':'')+'</td></tr>';
+        });
+        if(rows) bs.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
+      });
+      if(bs.length){
+        h+='<h3>학교 부교재</h3>'+bs.join('')
+          +'<div class="hint">부교재는 학원 자체 조사분입니다. 학사일정과 출처가 다릅니다.<br>'
+          +'<b>학기 표시가 없는 것</b>은 아직 어느 학기 것인지 확인되지 않은 것입니다.</div>';
       }
     }
-    var b=BK[g.name];
-    if(b){ h+='<h3>학교 부교재</h3><table class="bkrow">';
-      Object.keys(b).sort().forEach(function(gr){
-        var its=b[gr].items.filter(function(x){return deptOf(x[0])===curDept;}).sort(function(p,q){
-          var sp=semesterOf(g.name,gr,p[0],p[2])||'9', sq=semesterOf(g.name,gr,q[0],q[2])||'9';
-          return sp<sq?-1:sp>sq?1:0; });
-        if(!its.length) return;
-        h+='<tr><td>'+esc(gr)+'학년</td><td>'+its.map(function(x){
-          return semTag(semesterOf(g.name,gr,x[0],x[2]))+'<b>'+esc(x[0])+'</b> · '+esc(x[1]);}).join('<br>')
-          +(b[gr].note?'<div class="bnote">'+esc(b[gr].note)+'</div>':'')+'</td></tr>'; });
-      h+='</table><div class="hint">부교재는 학원 자체 조사분입니다. 학사일정과 출처가 다릅니다.<br>'
-        +'<b>학기 표시가 없는 것</b>은 아직 어느 학기 것인지 확인되지 않은 것입니다.</div>'; }
     h+='<h3>수업일수</h3><table><tr><td>1학기</td><td>'+(r.d1||'-')+'일</td></tr>'
       +'<tr><td>2학기</td><td>'+(r.d2||'-')+'일</td></tr>'
       +'<tr><td>합계</td><td>'+(r.dt||'-')+'일</td></tr></table>';
@@ -1102,7 +1187,6 @@ function open(key){
       +'<div class="hint" style="text-align:center">바뀐 시험일이나 부교재를 아시면 알려 주십시오. 확인 뒤 모두에게 반영됩니다.</div>'
       +'</div></div>';
     p.querySelectorAll('.gtab button').forEach(function(b){ b.onclick=function(){ gi=+b.dataset.g; draw(); }; });
-    p.querySelectorAll('.dtab button').forEach(function(b){ b.onclick=function(){ curDept=b.dataset.d; draw(); }; });
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ SUGGEST.open(g); };
@@ -1286,6 +1370,21 @@ lvbox.innerHTML='<button class="chip fav" id="favchip">즐겨찾기</button>'
   +LV.map(function(v){ return '<button class="chip'+(v===curLv?' on':'')+'" data-lv="'+v+'">'+v+'</button>';}).join('')
   +'<select id="off">'+OFFS.map(function(o){return '<option>'+o+'</option>';}).join('')+'</select>'
   +'<span class="count" id="cnt"></span>';
+var dbox=document.createElement('div');
+dbox.className='filters dfil';
+dbox.innerHTML='<span class="flabel">교과</span>'
+  +DEPTS.map(function(d){ return '<button class="chip dep" data-dep="'+d+'">'+d+'</button>';}).join('')
+  +'<span class="hint" id="dephint">고르지 않으면 전 교과가 다 나옵니다</span>';
+lvbox.parentNode.insertBefore(dbox, lvbox.nextSibling);
+dbox.querySelectorAll('.chip.dep').forEach(function(b){
+  b.onclick=function(){
+    var d=b.dataset.dep, i=selDepts.indexOf(d);
+    if(i<0) selDepts.push(d); else selDepts.splice(i,1);
+    b.classList.toggle('on', i<0);
+    document.getElementById('dephint').textContent = selDepts.length
+      ? '고른 교과만 학교 상세에 나옵니다' : '고르지 않으면 전 교과가 다 나옵니다';
+  };
+});
 lvbox.querySelectorAll('.chip[data-lv]').forEach(function(b){
   b.onclick=function(){ curLv=b.dataset.lv;
     lvbox.querySelectorAll('.chip[data-lv]').forEach(function(x){x.classList.toggle('on',x===b);}); render(); }; });
