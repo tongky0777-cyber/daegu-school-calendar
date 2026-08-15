@@ -101,15 +101,68 @@ input[type=text]:focus{border-color:var(--teal-l)}
 footer{max-width:1080px;margin:0 auto;padding:0 16px 40px;font-size:11.5px;color:var(--muted);line-height:1.7}
 @media(max-width:520px){ .grid{grid-template-columns:1fr} .panel{top:0;bottom:0;border-radius:0;width:100%}
   .panel.sm{top:auto;bottom:0;border-radius:14px 14px 0 0} }
+
+/* 보기 전환 */
+.viewtab{display:flex;gap:6px;margin-top:9px}
+.vt{padding:6px 16px;font-size:13px;font-weight:800;border:1px solid var(--line);
+  border-radius:999px;background:var(--surface);color:var(--ink2);cursor:pointer}
+.vt.on{background:var(--ink);border-color:var(--ink);color:#fff}
+/* 달력 */
+.calhead{display:flex;align-items:center;gap:9px;margin-bottom:11px;flex-wrap:wrap}
+.ctitle{font-size:17px;font-weight:800;letter-spacing:-.02em;min-width:118px;text-align:center}
+.cnames{font-size:12px;color:var(--muted);flex:1 1 100%;line-height:1.6}
+table.cal{width:100%;border-collapse:collapse;table-layout:fixed;background:var(--surface)}
+table.cal th{padding:6px 2px;font-size:12px;font-weight:800;color:var(--ink2);
+  background:var(--surface2);border:1px solid var(--line)}
+table.cal th.sun,table.cal td.sun .dnum{color:#a33a3a}
+table.cal th.sat,table.cal td.sat .dnum{color:#2b5f8a}
+table.cal td{border:1px solid var(--line);vertical-align:top;padding:4px 4px 5px;height:96px}
+table.cal td.out{background:#fafbfb}
+table.cal td.out .dnum{color:#c8d2cf}
+.dnum{font-size:12px;font-weight:800;color:var(--ink2);margin-bottom:3px}
+.evs{display:flex;flex-direction:column;gap:2px}
+.ev{font-size:11px;font-weight:600;padding:2.5px 5px;border-radius:4px;line-height:1.4;
+  white-space:normal;word-break:keep-all}
+.ev b{font-weight:800}
+.ev span{font-weight:600;opacity:.75}
+.ev.mid{background:#fdeee0;color:#9a5410}
+.ev.fin{background:#f9e3e3;color:#a33a3a}
+.ev.va{background:#e6f2ef;color:#0f7766}
+.ev.op{background:#e4eef7;color:#2b5f8a}
+.ev.mid.f{box-shadow:inset 2.5px 0 0 #c26a17}
+.ev.fin.f{box-shadow:inset 2.5px 0 0 #a33a3a}
+.callegend{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.callegend .ev{font-size:11.5px}
+@media(max-width:640px){
+  table.cal td{height:auto;min-height:52px;padding:3px 2px 4px}
+  .ev{font-size:9px;padding:1.5px 3px;line-height:1.35}
+  .dnum{font-size:10.5px}
+}
+/* 달력 인쇄 */
+.calpage{page-break-inside:avoid}
+.calpage.brk{page-break-after:always}
+table.calp{font-size:8pt;margin-top:2mm}
+table.calp th{border:.6pt solid #9aa8a4;background:#eef3f2;padding:2.4pt;font-size:8.4pt}
+table.calp td{border:.6pt solid #c2cecb;height:auto;padding:2pt 2.4pt 3pt}
+table.calp .dnum{font-size:8.4pt;margin-bottom:1.6pt}
+table.calp .ev{font-size:7pt;padding:1.4pt 2.4pt;border-radius:2pt;line-height:1.32;font-weight:600}
+table.calp .ev b{font-weight:800}
+table.calp .ev.mid{background:#fdeee0;color:#8c4b0e}
+table.calp .ev.fin{background:#f9e3e3;color:#963434}
+table.calp .ev.va{background:#e6f2ef;color:#0d6858}
+table.calp .ev.op{background:#e4eef7;color:#27567d}
+
 /* ===== 인쇄 ===== */
 #print{display:none}
 @media print{
   body{background:#fff}
+  /* 배경색·표 색이 인쇄에서 빠지지 않게 한다 */
+  *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
   header,main,footer,.sheet{display:none !important}
   #print{display:block}
-  @page{size:A4 landscape;margin:11mm 9mm}
+  @page{size:A4 landscape;margin:10mm 9mm 12mm}
 }
-#print{font-size:9.5pt;color:#000}
+#print{font-size:9.5pt;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .prt-h{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:4px}
 .prt-org{font-size:15pt;font-weight:800;letter-spacing:-.02em}
 .prt-t{font-size:11pt;font-weight:700}
@@ -140,10 +193,12 @@ table.prt thead{display:table-header-group}
     <button class="clr" id="clr">지우기</button>
   </div>
   <div class="filters" id="lv"></div>
+  <div class="viewtab"><button class="vt on" data-v="list">목록</button><button class="vt" data-v="cal">달력</button></div>
 </div></header>
 <main>
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" style="display:none"></div>
+  <div id="calbox" style="display:none"></div>
 </main>
 <footer id="foot"></footer>
 <div class="sheet" id="sheet"><div class="panel" id="panel"></div></div>
@@ -456,11 +511,188 @@ var HELP=(function(){
   return {open:open, close:close};
 })();
 </script>
+<script>/* ===== 달력 보기 ===== */
+var CAL=(function(){
+  var MONTHS=[];   // 학년도 2026-03 ~ 2027-02
+  for(var i=0;i<12;i++){ var m=3+i; MONTHS.push(m<=12?[2026,m]:[2027,m-12]); }
+  var cur=0;
+  var W=['일','월','화','수','목','금','토'];
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function abbr(n){
+    return n.replace('여자고등학교','여고').replace('여자중학교','여중')
+            .replace('여자상업고등학교','여상').replace('고등학교','고')
+            .replace('중학교','중').replace('초등학교','초').replace('학교','').trim();
+  }
+  function key(y,m,d){ return y+'-'+('0'+m).slice(-2)+'-'+('0'+d).slice(-2); }
+  function parse(s){ var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+
+  /* 학교 묶음 → 날짜별 일정
+     ★ 1~2학년과 3학년이 같은 날이면 한 줄로 합친다. 다를 때만 (3) 을 붙인다 */
+  function build(groups){
+    var map={};
+    function put(d,o){ if(!d) return; (map[d]=map[d]||[]).push(o); }
+    var EX=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'];
+
+    groups.forEach(function(g){
+      var nm=abbr(g.name), rows=g.rows;
+      function span(r,i){ var a=r.ex&&r.ex[i]?r.ex[i][0]:null, b=r.ex&&r.ex[i]?r.ex[i][1]:null;
+        return a? a+'~'+(b||a) : null; }
+      // 시험
+      EX.forEach(function(n,i){
+        var byKey={};
+        rows.forEach(function(r){
+          var s=span(r,i); if(!s) return;
+          (byKey[s]=byKey[s]||[]).push(String(r.grade||''));
+        });
+        var keys=Object.keys(byKey);
+        keys.forEach(function(s){
+          var grades=byKey[s];
+          var tag = (keys.length<=1 || rows.length<=1) ? nm
+                  : nm+'('+grades.join('·').replace('1~2','1·2')+')';
+          var p=s.split('~'), a=parse(p[0]), b=parse(p[1]), first=true;
+          for(var t=new Date(a); t<=b; t.setDate(t.getDate()+1)){
+            put(key(t.getFullYear(),t.getMonth()+1,t.getDate()),
+                {k:(n.indexOf('중간')>=0?'mid':'fin'), t:tag, n:n.replace('학기 ','-'), first:first});
+            first=false;
+          }
+        });
+      });
+      // 방학 · 개학
+      [['ss','여름방학식','va'],['se','2학기 개학','op'],['ws_','겨울방학식','va'],['we','학년말 개학','op']]
+      .forEach(function(spec){
+        var byDay={};
+        rows.forEach(function(r){ var d=r[spec[0]]; if(!d) return;
+          (byDay[d]=byDay[d]||[]).push(String(r.grade||'')); });
+        var days=Object.keys(byDay);
+        days.forEach(function(d){
+          var tag=(days.length<=1||rows.length<=1) ? nm
+                : nm+'('+byDay[d].join('·').replace('1~2','1·2')+')';
+          put(d,{k:spec[2], t:tag, n:spec[1]});
+        });
+      });
+    });
+    return map;
+  }
+
+  /* 한 달 표 만들기 — mode: 'screen' | 'print' */
+  function month(y,m,map,mode){
+    var first=new Date(y,m-1,1), start=new Date(first); start.setDate(1-first.getDay());
+    var weeks=[], t=new Date(start), used=0;
+    for(var w=0;w<6;w++){
+      var row=[];
+      for(var d=0;d<7;d++){
+        var inM=(t.getMonth()===m-1);
+        var k=key(t.getFullYear(),t.getMonth()+1,t.getDate());
+        var items=(map[k]||[]);
+        if(inM&&items.length) used++;
+        row.push({d:t.getDate(), inM:inM, dow:d, items:items, k:k});
+        t.setDate(t.getDate()+1);
+      }
+      weeks.push(row);
+      if(w>=4 && t.getMonth()!==m-1) break;   // 6주가 필요 없으면 자른다
+    }
+    var cls = mode==='print' ? 'calp' : 'cals';
+    var hstyle = mode==='print' ? ' style="height:'+(Math.floor(1420/weeks.length)/10)+'mm"' : '';
+    var h='<table class="cal '+cls+'"><thead><tr>'
+      +W.map(function(x,i){ return '<th class="'+(i===0?'sun':i===6?'sat':'')+'">'+x+'</th>'; }).join('')
+      +'</tr></thead><tbody>';
+    weeks.forEach(function(row){
+      h+='<tr>';
+      row.forEach(function(c){
+        var cc=['cell']; if(!c.inM) cc.push('out');
+        if(c.dow===0) cc.push('sun'); if(c.dow===6) cc.push('sat');
+        h+='<td class="'+cc.join(' ')+'"'+hstyle+'><div class="dnum">'+c.d+'</div>';
+        if(c.inM && c.items.length){
+          // 같은 일정끼리 한 줄로 모은다 (한 날에 학교가 많아도 칸이 넘치지 않는다)
+          var bag={}, order=[];
+          c.items.forEach(function(x){
+            var kk=x.k+'|'+x.n;
+            if(!bag[kk]){ bag[kk]={k:x.k,n:x.n,names:[],first:false}; order.push(kk); }
+            bag[kk].names.push(x.t);
+            if(x.first) bag[kk].first=true;
+          });
+          order.sort(function(a,b){
+            var R={mid:0,fin:1,va:2,op:3};
+            return R[bag[a].k]-R[bag[b].k];
+          });
+          h+='<div class="evs">';
+          order.forEach(function(kk){
+            var e=bag[kk];
+            h+='<div class="ev '+e.k+(e.first?' f':'')+'">'
+              +'<b>'+esc(e.n)+'</b> '+esc(e.names.join(' · '))+'</div>';
+          });
+          h+='</div>';
+        }
+        h+='</td>';
+      });
+      h+='</tr>';
+    });
+    return h+'</tbody></table>';
+  }
+
+  function titleOf(i){ return MONTHS[i][0]+'년 '+MONTHS[i][1]+'월'; }
+
+  function render(groups){
+    var box=document.getElementById('calbox');
+    if(!groups.length){
+      box.innerHTML='<div class="empty">즐겨찾기가 비어 있습니다.<br>'
+        +'목록에서 학교 카드의 별을 눌러 담으시면 그 학교들의 일정이 달력에 나옵니다.</div>';
+      return;
+    }
+    var map=build(groups), y=MONTHS[cur][0], m=MONTHS[cur][1];
+    box.innerHTML='<div class="calhead">'
+      +'<button class="btn ghost" id="cprev">◀</button>'
+      +'<div class="ctitle">'+titleOf(cur)+'</div>'
+      +'<button class="btn ghost" id="cnext">▶</button>'
+      +'<div class="cnames">'+groups.map(function(g){return esc(abbr(g.name));}).join(' · ')+'</div>'
+      +'</div>'+month(y,m,map,'screen')
+      +'<div class="callegend"><span class="ev mid">중간고사</span><span class="ev fin">기말고사</span>'
+      +'<span class="ev va">방학식</span><span class="ev op">개학</span>'
+      +'<span class="hint" style="margin:0">즐겨찾기 '+groups.length+'개교 · 중·고 3학년은 (3) 으로 표시됩니다</span></div>';
+    document.getElementById('cprev').onclick=function(){ if(cur>0){cur--; render(groups);} };
+    document.getElementById('cnext').onclick=function(){ if(cur<11){cur++; render(groups);} };
+  }
+
+  function printCal(groups, org, onlyThis){
+    var map=build(groups);
+    var list = onlyThis ? [cur] : MONTHS.map(function(_,i){return i;});
+    // 일정이 하나도 없는 달은 뺀다 (전체 인쇄일 때)
+    if(!onlyThis){
+      list=list.filter(function(i){
+        var y=MONTHS[i][0], m=MONTHS[i][1];
+        for(var d=1;d<=31;d++){ if(map[key(y,m,d)]) return true; }
+        return false;
+      });
+    }
+    var names=groups.map(function(g){return abbr(g.name);}).join(' · ');
+    var h='';
+    list.forEach(function(i,idx){
+      var y=MONTHS[i][0], m=MONTHS[i][1];
+      h+='<div class="calpage'+(idx<list.length-1?' brk':'')+'">'
+        +'<div class="prt-h">'
+        +(org?'<div class="prt-org">'+esc(org)+'</div>':'')
+        +'<div class="prt-t">'+y+'년 '+m+'월 학사일정</div>'
+        +'<div class="prt-d">'+names+'</div></div>'
+        +month(y,m,map,'print')
+        +'<div class="prt-f">출처 · 대구광역시교육청 「2026학년도 학사일정 현황」 · 자료 판 '+esc(DATA.built)
+        +'<br>학교 사정으로 일정이 바뀔 수 있습니다. 중요한 날짜는 학교 공지로 확인해 주십시오.</div></div>';
+    });
+    if(!h) h='<div class="calpage"><div class="prt-t">인쇄할 일정이 없습니다.</div></div>';
+    document.getElementById('print').innerHTML=h;
+    setTimeout(function(){ window.print(); },60);
+  }
+
+  return {render:render, printCal:printCal, monthTitle:function(){return titleOf(cur);}};
+})();
+</script>
 
 <script>(function(){
 var S=DATA.schools, BK=DATA.books;
 var TODAY=new Date(); TODAY.setHours(0,0,0,0);
 var LV=['전체','초','중','고','특수','각종'], curLv='전체', curOff='전체', q='', favOnly=false;
+var VIEW='list';
 
 /* ---------- 저장소 (막혀 있어도 죽지 않게) ---------- */
 var MEM={};
@@ -513,6 +745,16 @@ function filtered(){
     return true; });
 }
 function render(){
+  var isCal=(VIEW==='cal');
+  document.getElementById('calbox').style.display=isCal?'block':'none';
+  document.getElementById('grid').style.display=isCal?'none':'grid';
+  if(isCal){
+    document.getElementById('empty').style.display='none';
+    document.getElementById('cnt').textContent=FAV.length+'개교';
+    document.getElementById('favchip').textContent='즐겨찾기'+(FAV.length?' '+FAV.length:'');
+    CAL.render(favList());
+    return;
+  }
   var out=filtered();
   document.getElementById('cnt').textContent=out.length+'개교';
   document.getElementById('favchip').textContent='즐겨찾기'+(FAV.length?' '+FAV.length:'');
@@ -610,10 +852,21 @@ function openExport(){
    +'<label><input type="checkbox" id="c1" checked> 방학 · 개학</label>'
    +'<label><input type="checkbox" id="c2" checked> 정기시험</label>'
    +'<label><input type="checkbox" id="c3" checked> 부교재</label></div>'
+   +'<label class="fl">어떤 모양으로</label><div class="radio">'
+   +'<label><input type="radio" name="fm" value="table" checked> 표 — 학교마다 한 줄</label>'
+   +'<label><input type="radio" name="fm" value="cal"'+(favN?'':' disabled')+'> 달력 — 한 달에 한 쪽'
+   +(favN?'':' (즐겨찾기가 필요합니다)')+'</label></div>'
+   +'<div class="hint" id="fmhint"></div>'
    +'<div class="acts"><button class="btn" id="doPdf">PDF로 인쇄</button>'
    +'<button class="btn ghost" id="doXls">엑셀 내려받기</button></div>'
-   +'<div class="hint">PDF는 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 됩니다. A4 가로로 맞춰 두었습니다.</div></div>';
+   +'<div class="hint">PDF는 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 됩니다. <b>A4 가로</b>로 맞춰 두었습니다.</div></div>';
   document.getElementById('ex').onclick=closeExport;
+  p.querySelectorAll('input[name=fm]').forEach(function(r){
+    r.onchange=function(){
+      document.getElementById('fmhint').innerHTML = r.value==='cal'
+        ? '달력은 <b>즐겨찾기한 학교</b>로만 그립니다. 일정이 있는 달만 나옵니다.'
+        : ''; };
+  });
   document.getElementById('doPdf').onclick=function(){ go('pdf'); };
   document.getElementById('doXls').onclick=function(){ go('xls'); };
   document.getElementById('esheet').classList.add('on');
@@ -625,7 +878,9 @@ function openExport(){
              bk:document.getElementById('c3').checked};
     if(!gs.length){ alert('낼 학교가 없습니다.'); return; }
     closeExport();
-    if(kind==='pdf') doPrint(gs,opt); else doExcel(gs,opt);
+    var fm=(p.querySelector('input[name=fm]:checked')||{}).value||'table';
+    if(kind==='pdf'){ if(fm==='cal') CAL.printCal(favList(), ORG, false); else doPrint(gs,opt); }
+    else doExcel(gs,opt);
   }
 }
 function closeExport(){ document.getElementById('esheet').classList.remove('on'); }
@@ -725,6 +980,11 @@ document.getElementById('grid').onclick=function(e){
   var s=e.target.closest('[data-star]');
   if(s){ e.stopPropagation(); toggleFav(BYKEY[s.dataset.star]); render(); return; }
   var c=e.target.closest('.card'); if(c) open(c.dataset.k); };
+document.querySelectorAll('.vt').forEach(function(b){
+  b.onclick=function(){ VIEW=b.dataset.v;
+    document.querySelectorAll('.vt').forEach(function(x){x.classList.toggle('on',x===b);});
+    render(); };
+});
 document.getElementById('expBtn').onclick=openExport;
 document.getElementById('helpBtn').onclick=HELP.open;
 document.getElementById('sheet').onclick=function(e){ if(e.target.id==='sheet') close(); };
