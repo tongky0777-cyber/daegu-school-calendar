@@ -165,6 +165,9 @@ input[type=text]:focus{border-color:var(--teal-l)}
 .radio{display:flex;flex-direction:column;gap:7px}
 .radio label,.checks label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
 .checks{display:flex;gap:14px;flex-wrap:wrap}
+.showme{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;cursor:pointer;
+  margin-top:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--surface2)}
+.showme input{width:17px;height:17px;flex:none;cursor:pointer}
 .hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6}
 .acts{display:flex;gap:8px;margin-top:20px}
 .acts .btn{flex:1;padding:12px}
@@ -528,7 +531,10 @@ var SUGGEST=(function(){
         +'<div style="display:flex;gap:10px">'
         +'<input type="text" id="sname" placeholder="이름 (성만 적으셔도 됩니다)" value="'+esc(ME&&ME.name||'')+'">'
         +'<input type="text" id="sorg" placeholder="학원 (안 적으셔도 됩니다)" value="'+esc(ME&&ME.org||'')+'"></div>'
-        +'<div class="hint">누가 주신 정보인지 남기기 위한 것입니다. <b>이름만 적으셔도 됩니다.</b> 한 번 넣으면 이 브라우저가 기억합니다.</div>'
+        +'<div class="hint">이름은 <b>꼭 적어 주십시오.</b> 나중에 잘못된 것을 바로잡을 때 필요합니다. 학원은 안 적으셔도 됩니다. 한 번 넣으면 이 브라우저가 기억합니다.</div>'
+        +'<label class="showme"><input type="checkbox" id="sshow"'+((ME&&ME.show===false)?'':' checked')+'>'
+        +'<span>다른 선생님께도 제 이름을 보여 주세요</span></label>'
+        +'<div class="hint">체크하지 않으시면 화면에는 <b>「익명」</b>으로 나옵니다. 다만 운영자(김병진)는 누가 보내셨는지 볼 수 있습니다.</div>'
         +'<div class="acts"><button class="btn" id="ssend">'+(READY?'보내기':'내용 만들기')+'</button></div>'
         +'<div class="hint">'+(READY
           ? '보내면 김병진T에게 바로 알림이 갑니다. 확인 뒤 화면에 반영되며, 그 전에는 아무에게도 보이지 않습니다.'
@@ -630,7 +636,9 @@ var SUGGEST=(function(){
       var name=(document.getElementById('sname').value||'').trim();
       var org=(document.getElementById('sorg').value||'').trim();
       if(!name){ alert('이름을 적어 주십시오. 학원은 안 적으셔도 됩니다.'); return; }
-      var body={school:g.name, lvl:g.lvl, kind:kind, dept:curD, name:name, org:org,
+      var showEl=document.getElementById('sshow');
+      var show=showEl? !!showEl.checked : true;
+      var body={school:g.name, lvl:g.lvl, kind:kind, dept:curD, name:name, org:org, show:show,
                 note:(document.getElementById('snote').value||'').trim()};
       if(kind==='book'){
         body.grade=(p.querySelector('input[name=sgr]:checked')||{}).value;
@@ -665,7 +673,7 @@ var SUGGEST=(function(){
         body.end=document.getElementById('sd2').value;
         if(!body.start && !(body.note||'').length){ alert('바뀐 날짜를 넣거나, 한마디에 사정을 적어 주십시오.'); return; }
       }
-      try{ localStorage.setItem('dgcal.me', JSON.stringify({name:name,org:org})); }catch(e){}
+      try{ localStorage.setItem('dgcal.me', JSON.stringify({name:name,org:org,show:show})); }catch(e){}
       var btn=document.getElementById('ssend');
       if(!READY || DEMO){ handoff(body); return; }
       btn.disabled=true; btn.textContent='보내는 중…';
@@ -712,6 +720,7 @@ var SUGGEST=(function(){
       }
       if(b.note) L.push('근거 : '+b.note);
       L.push('보낸 이 : '+b.name+(b.org? ' ('+b.org+')':''));
+      if(b.show===false) L.push('  ※ 화면에는 「익명」으로 넣어 주십시오');
       return L.join('\n');
     }
     function handoff(b){
