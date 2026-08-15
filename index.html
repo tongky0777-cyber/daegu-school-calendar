@@ -946,9 +946,10 @@ var NEIS = (function(){
         return hit.SD_SCHUL_CODE;
       });
   }
-  function schedule(name, from, to){
+  function schedule(name, from, to, force){
     var ck=name+'|'+from+'|'+to;
-    if(schedCache[ck]) return Promise.resolve(schedCache[ck]);
+    if(schedCache[ck] && !force) return Promise.resolve(schedCache[ck]);
+    if(force) delete schedCache[ck];
     return codeOf(name).then(function(code){
       return api('SchoolSchedule','pIndex=1&pSize=1000&ATPT_OFCDC_SC_CODE='+OFC
                  +'&SD_SCHUL_CODE='+code+'&AA_FROM_YMD='+from+'&AA_TO_YMD='+to);
@@ -1241,12 +1242,15 @@ function open(key){
     document.getElementById('sugb').onclick=function(){ SUGGEST.open(g); };
     var nb=document.getElementById('neisb');
     if(nb) nb.onclick=function(){
-      nb.disabled=true; nb.textContent='NEIS 에서 받는 중…';
-      NEIS.schedule(g.name, '20260301', '20270228').then(function(rows){
+      var again = nb.dataset.done==='1';
+      nb.disabled=true; nb.textContent = again ? 'NEIS 에서 다시 받는 중…' : 'NEIS 에서 받는 중…';
+      var box=document.getElementById('neisbox');
+      if(box) box.innerHTML='<div class="hint" style="margin-top:10px">받는 중입니다…</div>';
+      NEIS.schedule(g.name, '20260301', '20270228', again).then(function(rows){
         var box=document.getElementById('neisbox');
         if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
         if(!rows.length){ box.innerHTML='<div class="notice" style="margin-top:10px">NEIS 에 올라온 일정이 없습니다.</div>';
-          nb.textContent='NEIS 최신 일정 보기'; nb.disabled=false; return; }
+          nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false; return; }
         var key=rows.filter(function(x){ return /시험|고사|평가|방학|개학|졸업|종업|입학/.test(x.n); });
         var t='<h3 style="margin-top:16px">NEIS 학사일정</h3><table class="bkrow">';
         (key.length?key:rows).forEach(function(x){
@@ -1254,16 +1258,17 @@ function open(key){
           t+='<tr><td>'+fmt(ds)+'</td><td>'+esc(x.n)
             +(x.g.length&&x.g.length<3?' <span class="pub">'+x.g.join('·')+'학년</span>':'')+'</td></tr>';
         });
-        t+='</table><div class="hint">출처 · 나이스 교육정보 개방 포털 · 방금 받아 온 것입니다. '
+        var now=new Date(), hh=('0'+now.getHours()).slice(-2), mm=('0'+now.getMinutes()).slice(-2);
+        t+='</table><div class="hint">출처 · 나이스 교육정보 개방 포털 · <b>'+hh+':'+mm+' 에 받아 온 것</b>입니다. '
           +'학교가 고치면 여기에 먼저 반영됩니다. 시험·방학·평가만 골라 보여 드립니다 ('+rows.length+'건 중 '+key.length+'건)</div>';
         box.innerHTML=t;
-        nb.textContent='NEIS 최신 일정 다시 받기'; nb.disabled=false;
+        nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
       }).catch(function(e){
         var box=document.getElementById('neisbox');
         if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
         box.innerHTML='<div class="notice" style="margin-top:10px;background:var(--red-bg);color:var(--red)">'
           +'NEIS 에서 받지 못했습니다 — '+esc(String(e.message||e))+'</div>';
-        nb.textContent='NEIS 최신 일정 보기'; nb.disabled=false;
+        nb.textContent='NEIS 최신 일정 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
       });
     };
   }
