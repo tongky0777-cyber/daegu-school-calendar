@@ -125,7 +125,14 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .nshead{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
 .nshead b{font-size:14px;font-weight:800}
 /* 작은 달력 12장 */
-.mcwrap{display:grid;grid-template-columns:repeat(3,1fr);gap:9px 8px;margin-top:12px}
+.mctip{background:var(--surface2);border-radius:8px;padding:9px 12px;font-size:12.5px;
+  color:var(--muted);line-height:1.55;margin-top:12px;min-height:38px}
+.mctip.on{background:var(--teal-bg);color:var(--teal)}
+.mctip b{color:var(--ink);font-weight:800;margin-right:4px}
+.mctip.on b{color:var(--teal)}
+table.mct td.has{cursor:pointer}
+table.mct td.sel{outline:2px solid var(--ink);outline-offset:-2px}
+.mcwrap{display:grid;grid-template-columns:repeat(3,1fr);gap:9px 8px;margin-top:9px}
 .mc{background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 5px 6px}
 .mch{font-size:11px;font-weight:800;color:var(--ink2);text-align:center;margin-bottom:3px}
 table.mct{width:100%;border-collapse:collapse;table-layout:fixed}
@@ -1080,8 +1087,15 @@ var NEISVIEW = (function(){
         var ev=inM?(map[key]||[]):[];
         var cls=[]; if(!inM) cls.push('o');
         if(ev.length) cls.push('e-'+kindOf(ev));
-        var tip = ev.length ? ' title="'+esc(ev.map(function(x){return x.n;}).join(' · '))+'"' : '';
-        h+='<td class="'+cls.join(' ')+'"'+tip+'>'+(inM?t.getDate():'')+'</td>';
+        var lab='';
+        if(ev.length){
+          var g0=ev.map(function(x){
+            var gg=(x.g&&x.g.length&&x.g.length<3)?'('+x.g.join('·')+'학년)':'';
+            return x.n+gg; }).join(' · ');
+          lab=' data-ev="'+esc(g0)+'" data-d="'+key+'"';
+          cls.push('has');
+        }
+        h+='<td class="'+cls.join(' ')+'"'+lab+'>'+(inM?t.getDate():'')+'</td>';
         t.setDate(t.getDate()+1);
       }
       h+='</tr>';
@@ -1090,7 +1104,9 @@ var NEISVIEW = (function(){
     return h+'</table></div>';
   }
   function render(rows){
-    var map=byDay(rows), h='<div class="mcwrap">';
+    var map=byDay(rows);
+    var h='<div class="mctip" id="mctip">색칠된 날짜를 누르면 무슨 날인지 여기에 나옵니다</div>';
+    h+='<div class="mcwrap">';
     for(var i=0;i<12;i++){
       var mm=3+i, y=2026, m=mm;
       if(mm>12){ y=2027; m=mm-12; }
@@ -1103,7 +1119,28 @@ var NEISVIEW = (function(){
       +'<span class="hint" style="margin:0">날짜에 손을 올리면 행사 이름이 뜹니다</span></div>';
     return h;
   }
-  return {render:render};
+  /* 색칠된 날짜를 누르거나 손을 올리면 위 줄에 이름이 뜬다 (폰에서도 된다) */
+  function bind(root){
+    var tip=root.querySelector('#mctip');
+    if(!tip) return;
+    var base=tip.textContent;
+    function show(td){
+      if(!td || !td.dataset.ev) return;
+      var d=td.dataset.d;
+      var w='일월화수목금토'[new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8)).getDay()];
+      tip.innerHTML='<b>'+(+d.slice(4,6))+'월 '+(+d.slice(6,8))+'일('+w+')</b> '+esc(td.dataset.ev);
+      tip.classList.add('on');
+      root.querySelectorAll('.mct td.sel').forEach(function(x){ x.classList.remove('sel'); });
+      td.classList.add('sel');
+    }
+    root.addEventListener('click', function(e){
+      var td=e.target.closest('.mct td'); if(td && td.dataset.ev) show(td);
+    });
+    root.addEventListener('mouseover', function(e){
+      var td=e.target.closest('.mct td'); if(td && td.dataset.ev) show(td);
+    });
+  }
+  return {render:render, bind:bind};
 })();
 </script>
 
@@ -1419,6 +1456,7 @@ function open(key){
         h2+=NEISVIEW.render(rows);
         h2+='<div class="hint">출처 · 나이스 교육정보 개방 포털. 학교가 고치면 여기에 먼저 반영됩니다.</div>';
         side.innerHTML=h2;
+        NEISVIEW.bind(side);
         p.classList.add('wide');
         nb.textContent='NEIS 다시 받기'; nb.dataset.done='1'; nb.disabled=false;
       }).catch(function(e){
