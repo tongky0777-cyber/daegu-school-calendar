@@ -224,6 +224,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="ssheet"><div class="panel sm" id="spanel"></div></div>
 <div class="sheet" id="hsheet"><div class="panel" id="hpanel"></div></div>
 <div id="print"></div>
+<script src="neis_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
    외부 CDN 에 기대지 않는다. 학교·학원 망에서 CDN 이 막혀도 동작한다. */
 var MiniXlsx=(function(){
@@ -920,6 +921,53 @@ var CAL=(function(){
   return {render:render, printCal:printCal, monthTitle:function(){return titleOf(cur);}};
 })();
 </script>
+<script>/* ===== NEIS 학사일정 =====
+   인증키는 이 파일이 아니라 ★neis_key.js★ 에 따로 둔다.
+   그 파일이 없으면 NEIS 기능만 조용히 꺼진다 (페이지는 그대로 뜬다). */
+var NEIS = (function(){
+  var KEY = (typeof NEIS_KEY!=='undefined' && NEIS_KEY) ? NEIS_KEY : '';
+  var OFC = 'D10';                     // 대구광역시교육청
+  var codeCache = {}, schedCache = {};
+
+  function on(){ return !!KEY; }
+  function api(path, qs){
+    var u='https://open.neis.go.kr/hub/'+path+'?Type=json&'+qs;
+    if(KEY) u+='&KEY='+encodeURIComponent(KEY);
+    return fetch(u).then(function(r){ return r.json(); });
+  }
+  function codeOf(name){
+    if(codeCache[name]) return Promise.resolve(codeCache[name]);
+    return api('schoolInfo','pSize=5&ATPT_OFCDC_SC_CODE='+OFC+'&SCHUL_NM='+encodeURIComponent(name))
+      .then(function(j){
+        var rows=(j.schoolInfo&&j.schoolInfo[1]&&j.schoolInfo[1].row)||[];
+        var hit=rows.filter(function(r){ return r.SCHUL_NM===name; })[0]||rows[0];
+        if(!hit) throw new Error('학교를 찾지 못했습니다');
+        codeCache[name]=hit.SD_SCHUL_CODE;
+        return hit.SD_SCHUL_CODE;
+      });
+  }
+  function schedule(name, from, to){
+    var ck=name+'|'+from+'|'+to;
+    if(schedCache[ck]) return Promise.resolve(schedCache[ck]);
+    return codeOf(name).then(function(code){
+      return api('SchoolSchedule','pIndex=1&pSize=1000&ATPT_OFCDC_SC_CODE='+OFC
+                 +'&SD_SCHUL_CODE='+code+'&AA_FROM_YMD='+from+'&AA_TO_YMD='+to);
+    }).then(function(j){
+      if(j.RESULT) throw new Error(j.RESULT.MESSAGE||'불러오지 못했습니다');
+      var rows=(j.SchoolSchedule&&j.SchoolSchedule[1]&&j.SchoolSchedule[1].row)||[];
+      var out=rows.map(function(x){
+        var g=[]; if(x.ONE_GRADE_EVENT_YN==='Y')g.push('1');
+                  if(x.TW_GRADE_EVENT_YN==='Y')g.push('2');
+                  if(x.THREE_GRADE_EVENT_YN==='Y')g.push('3');
+        return {d:x.AA_YMD, n:(x.EVENT_NM||'').trim(), g:g, sort:(x.SBTR_SCHYSMSTR_SC_NM||'')};
+      });
+      schedCache[ck]=out;
+      return out;
+    });
+  }
+  return {on:on, schedule:schedule, codeOf:codeOf};
+})();
+</script>
 
 <script>(function(){
 var S=DATA.schools, BK=DATA.books;
@@ -1183,6 +1231,7 @@ function open(key){
       +'<button class="btn ghost" id="favb" style="align-self:center">'+(isFav(g)?'★ 해제':'☆ 즐겨찾기')+'</button>'
       +'<button class="x" id="x">×</button></div><div class="pb">'+body()
       +'<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)">'
+      +(NEIS.on()?'<button class="btn ghost" id="neisb" style="width:100%;padding:12px;margin-bottom:8px">NEIS 최신 일정 보기</button>':'')
       +'<button class="btn ghost" id="sugb" style="width:100%;padding:12px">이 학교 정보 고쳐 주기 · 부교재 알려 주기</button>'
       +'<div class="hint" style="text-align:center">바뀐 시험일이나 부교재를 아시면 알려 주십시오. 확인 뒤 모두에게 반영됩니다.</div>'
       +'</div></div>';
@@ -1190,6 +1239,33 @@ function open(key){
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ SUGGEST.open(g); };
+    var nb=document.getElementById('neisb');
+    if(nb) nb.onclick=function(){
+      nb.disabled=true; nb.textContent='NEIS 에서 받는 중…';
+      NEIS.schedule(g.name, '20260301', '20270228').then(function(rows){
+        var box=document.getElementById('neisbox');
+        if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
+        if(!rows.length){ box.innerHTML='<div class="notice" style="margin-top:10px">NEIS 에 올라온 일정이 없습니다.</div>';
+          nb.textContent='NEIS 최신 일정 보기'; nb.disabled=false; return; }
+        var key=rows.filter(function(x){ return /시험|고사|평가|방학|개학|졸업|종업|입학/.test(x.n); });
+        var t='<h3 style="margin-top:16px">NEIS 학사일정</h3><table class="bkrow">';
+        (key.length?key:rows).forEach(function(x){
+          var d=x.d, ds=d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8);
+          t+='<tr><td>'+fmt(ds)+'</td><td>'+esc(x.n)
+            +(x.g.length&&x.g.length<3?' <span class="pub">'+x.g.join('·')+'학년</span>':'')+'</td></tr>';
+        });
+        t+='</table><div class="hint">출처 · 나이스 교육정보 개방 포털 · 방금 받아 온 것입니다. '
+          +'학교가 고치면 여기에 먼저 반영됩니다. 시험·방학·평가만 골라 보여 드립니다 ('+rows.length+'건 중 '+key.length+'건)</div>';
+        box.innerHTML=t;
+        nb.textContent='NEIS 최신 일정 다시 받기'; nb.disabled=false;
+      }).catch(function(e){
+        var box=document.getElementById('neisbox');
+        if(!box){ box=document.createElement('div'); box.id='neisbox'; nb.parentNode.appendChild(box); }
+        box.innerHTML='<div class="notice" style="margin-top:10px;background:var(--red-bg);color:var(--red)">'
+          +'NEIS 에서 받지 못했습니다 — '+esc(String(e.message||e))+'</div>';
+        nb.textContent='NEIS 최신 일정 보기'; nb.disabled=false;
+      });
+    };
   }
   draw(); document.getElementById('sheet').classList.add('on');
 }
