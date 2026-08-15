@@ -343,8 +343,8 @@ var SUGGEST=(function(){
     var grades=g.rows.map(function(r){return r.grade||'-';});
     function form(){
       var h='<div class="gtab wrap" style="margin-bottom:14px">'
-        +'<button data-k="book" class="'+(kind==='book'?'on':'')+'">부교재</button>'
-        +(g.lvl==='고'?'<button data-k="subj" class="'+(kind==='subj'?'on':'')+'">배우는 과목</button>':'')
+        +'<button data-k="book" class="'+(kind==='book'?'on':'')+'">과목 · 부교재</button>'
+        +(g.lvl==='고'?'<button data-k="subj" class="'+(kind==='subj'?'on':'')+'">한 해 과목 한꺼번에</button>':'')
         +(g.lvl!=='초'?'<button data-k="rng" class="'+(kind==='rng'?'on':'')+'">시험범위</button>':'')
         +'<button data-k="exam" class="'+(kind==='exam'?'on':'')+'">시험일정 정정</button></div>';
       if(kind==='book'){
@@ -358,9 +358,11 @@ var SUGGEST=(function(){
           +'<label><input type="radio" name="ssem" value="12"> 두 학기 다</label></div>'
           +'<label class="fl">과목 <span class="hint" style="font-weight:600;margin:0">— 같은 책을 쓰면 여러 개 고르셔도 됩니다</span></label>'
           +'<div class="checks" id="subbox"></div>'
-          +'<label class="fl">부교재 이름</label>'
-          +'<input type="text" id="sbook" placeholder="예: 올림포스 유형편 / 부교재 없음">'
-          +'<div class="hint">고른 과목에 이 책이 한꺼번에 들어갑니다. 과목마다 책이 다르면 따로 보내 주십시오.</div>';
+          +'<label class="fl">부교재 이름 <span class="hint" style="font-weight:600;margin:0">— 모르시면 비워 두셔도 됩니다</span></label>'
+          +'<input type="text" id="sbook" placeholder="예: 올림포스 유형편 / 부교재 없음 / 비워 두기">'
+          +'<div class="hint">고른 과목에 이 책이 한꺼번에 들어갑니다. 과목마다 책이 다르면 따로 보내 주십시오.<br>'
+          +'<b>비워 두시면 배우는 과목만 등록됩니다.</b> 부교재는 나중에 아시게 되면 그때 알려 주십시오.<br>'
+          +'그 학교가 그 과목에 <b>부교재를 안 쓰는 것</b>이면 「부교재 없음」이라고 적어 주십시오 — 비워 두는 것과 다릅니다.</div>';
       }else if(kind==='subj'){
         h+='<label class="fl">학년</label><div class="checks">'
           + ['1','2','3'].map(function(x,i){
@@ -373,7 +375,7 @@ var SUGGEST=(function(){
           +'<label class="fl">2학기에 배우는 과목</label><div class="checks" id="sj2">'
           + G2.map(function(s2,i){ return '<label><input type="checkbox" name="sj2" value="'+esc(s2)+'"> '+esc(s2)+'</label>';}).join('')
           +'</div>'
-          +'<div class="hint">한 학기에 두세 과목을 같이 배우면 다 골라 주십시오. 학기가 같으면 두 줄을 똑같이 고르시면 됩니다.</div>';
+          +'<div class="hint">1학기와 2학기를 <b>한 번에</b> 알려 주실 때 쓰는 자리입니다. 한 학기만 아시면 앞의 「과목 · 부교재」에서 그 학기만 고르셔도 됩니다.</div>';
       }else if(kind==='rng'){
         h+='<label class="fl">어느 시험입니까</label><select id="rex" style="width:100%;border-radius:9px;padding:10px 12px;font-size:14px">'
           + EXNAME.map(function(s2,i){return '<option value="'+i+'">'+s2+'</option>';}).join('')+'</select>'
@@ -467,7 +469,6 @@ var SUGGEST=(function(){
         body.subjects=Array.prototype.map.call(p.querySelectorAll('input[name=ssubs]:checked'),function(x){return x.value;});
         body.book=(document.getElementById('sbook').value||'').trim();
         if(!body.subjects.length){ alert('과목을 하나 이상 골라 주십시오.'); return; }
-        if(!body.book){ alert('부교재 이름을 적어 주십시오.'); return; }
       }else if(kind==='subj'){
         body.grade=(p.querySelector('input[name=sgr3]:checked')||{}).value;
         body.sj1=Array.prototype.map.call(p.querySelectorAll('input[name=sj1]:checked'),function(x){return x.value;});
@@ -499,10 +500,10 @@ var SUGGEST=(function(){
     function textOf(b){
       var L=['[학사일정 수정 제안]', b.school];
       if(b.kind==='book'){
-        L.push('구분 : 부교재');
+        L.push('구분 : '+(b.book? '부교재' : '배우는 과목'));
         L.push('학년 : '+(b.grade||'-')+'학년 '+(b.sem==='12'?'1·2학기':b.sem+'학기'));
         L.push('과목 : '+b.subjects.join(' · '));
-        L.push('부교재 : '+b.book);
+        L.push('부교재 : '+(b.book || '(모름 — 과목만 알려 드립니다)'));
       }else if(b.kind==='subj'){
         L.push('구분 : 배우는 과목');
         L.push('학년 : '+(b.grade||'-')+'학년');
