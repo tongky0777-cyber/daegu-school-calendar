@@ -953,7 +953,9 @@ function openExport(){
    +'<label class="fl">담을 것</label><div class="checks">'
    +'<label><input type="checkbox" id="c1" checked> 방학 · 개학</label>'
    +'<label><input type="checkbox" id="c2" checked> 정기시험</label>'
-   +'<label><input type="checkbox" id="c3" checked> 부교재</label></div>'
+   +'<label><input type="checkbox" id="c3" checked> 부교재</label>'
+   +'<label><input type="checkbox" id="c4"> 배우는 과목 · 시험범위</label></div>'
+   +'<div class="hint">부교재만 뽑으시려면 앞의 둘을 끄시면 됩니다. 학사일정 표는 빠지고 부교재 표만 나옵니다.</div>'
    +'<label class="fl">어떤 모양으로</label><div class="radio">'
    +'<label><input type="radio" name="fm" value="table" checked> 표 — 학교마다 한 줄</label>'
    +'<label><input type="radio" name="fm" value="cal"'+(favN?'':' disabled')+'> 달력 — 한 달에 한 쪽'
@@ -977,7 +979,8 @@ function openExport(){
     var t=p.querySelector('input[name=tgt]:checked').value;
     var gs = t==='fav' ? favList() : filtered();
     var opt={sum:document.getElementById('c1').checked, ex:document.getElementById('c2').checked,
-             bk:document.getElementById('c3').checked};
+             bk:document.getElementById('c3').checked, sr:document.getElementById('c4').checked};
+    if(!opt.sum && !opt.ex && !opt.bk && !opt.sr){ alert('담을 것을 하나 이상 골라 주십시오.'); return; }
     if(!gs.length){ alert('낼 학교가 없습니다.'); return; }
     closeExport();
     var fm=(p.querySelector('input[name=fm]:checked')||{}).value||'table';
@@ -992,27 +995,33 @@ function today(){ var d=new Date();
 
 function doPrint(gs,opt){
   var rows=rowsFor(gs);
-  var cols=[{t:'학교',w:'15%'},{t:'학년',w:'5%'}];
-  if(opt.sum) cols=cols.concat([{t:'여름방학',w:'8%'},{t:'2학기 개학',w:'8%'},{t:'겨울방학',w:'8%'}]);
-  if(opt.ex) cols=cols.concat([{t:'1학기 중간',w:'11%'},{t:'1학기 기말',w:'11%'},{t:'2학기 중간',w:'11%'},{t:'2학기 기말',w:'11%'}]);
+  var titles=[];
+  if(opt.sum||opt.ex) titles.push('학사일정 · 정기시험');
+  if(opt.bk) titles.push('부교재');
+  if(opt.sr) titles.push('배우는 과목 · 시험범위');
   var h='<div class="prt-h">'
     +(ORG?'<div class="prt-org">'+esc(ORG)+'</div>':'')
-    +'<div class="prt-t">2026학년도 학사일정 · 정기시험</div>'
+    +'<div class="prt-t">2026학년도 '+titles.join(' · ')+'</div>'
     +'<div class="prt-d">'+today()+' 기준 · '+gs.length+'개교</div></div>';
-  h+='<table class="prt"><colgroup>'+cols.map(function(c){return '<col style="width:'+c.w+'">';}).join('')+'</colgroup>'
-    +'<thead><tr>'+cols.map(function(c){return '<th>'+c.t+'</th>';}).join('')+'</tr></thead><tbody>';
-  rows.forEach(function(x){
-    var r=x.r, td=[];
-    td.push('<td class="l prt-name">'+esc(x.g.name)+'</td>');
-    td.push('<td>'+esc(x.grade)+'</td>');
-    if(opt.sum){ td.push('<td>'+(fmtS(r.ss)||'<span class="prt-none">-</span>')+'</td>');
-                 td.push('<td>'+(fmtS(r.se)||'<span class="prt-none">-</span>')+'</td>');
-                 td.push('<td>'+(fmtS(r.ws_)||'<span class="prt-none">-</span>')+'</td>'); }
-    if(opt.ex){ for(var i=0;i<4;i++){
-      var a=r.ex&&r.ex[i]?r.ex[i][0]:null, b=r.ex&&r.ex[i]?r.ex[i][1]:null;
-      td.push('<td>'+(a?rangeS(a,b):'<span class="prt-none">'+(x.g.lvl==='초'?'시험 없음':'-')+'</span>')+'</td>'); } }
-    h+='<tr>'+td.join('')+'</tr>'; });
-  h+='</tbody></table>';
+  if(opt.sum||opt.ex){
+    var cols=[{t:'학교',w:'15%'},{t:'학년',w:'5%'}];
+    if(opt.sum) cols=cols.concat([{t:'여름방학',w:'8%'},{t:'2학기 개학',w:'8%'},{t:'겨울방학',w:'8%'}]);
+    if(opt.ex) cols=cols.concat([{t:'1학기 중간',w:'11%'},{t:'1학기 기말',w:'11%'},{t:'2학기 중간',w:'11%'},{t:'2학기 기말',w:'11%'}]);
+    h+='<table class="prt"><colgroup>'+cols.map(function(c){return '<col style="width:'+c.w+'">';}).join('')+'</colgroup>'
+      +'<thead><tr>'+cols.map(function(c){return '<th>'+c.t+'</th>';}).join('')+'</tr></thead><tbody>';
+    rows.forEach(function(x){
+      var r=x.r, td=[];
+      td.push('<td class="l prt-name">'+esc(x.g.name)+'</td>');
+      td.push('<td>'+esc(x.grade)+'</td>');
+      if(opt.sum){ td.push('<td>'+(fmtS(r.ss)||'<span class="prt-none">-</span>')+'</td>');
+                   td.push('<td>'+(fmtS(r.se)||'<span class="prt-none">-</span>')+'</td>');
+                   td.push('<td>'+(fmtS(r.ws_)||'<span class="prt-none">-</span>')+'</td>'); }
+      if(opt.ex){ for(var i=0;i<4;i++){
+        var a=r.ex&&r.ex[i]?r.ex[i][0]:null, b=r.ex&&r.ex[i]?r.ex[i][1]:null;
+        td.push('<td>'+(a?rangeS(a,b):'<span class="prt-none">'+(x.g.lvl==='초'?'시험 없음':'-')+'</span>')+'</td>'); } }
+      h+='<tr>'+td.join('')+'</tr>'; });
+    h+='</tbody></table>';
+  }
   if(opt.bk){
     var bl=gs.filter(function(g){return BK[g.name];});
     if(bl.length){
@@ -1025,6 +1034,30 @@ function doPrint(gs,opt){
             +b[gr].items.map(function(x){return esc(x[0])+' · '+esc(x[1]);}).join('   /   ')
             +(b[gr].note?'   ('+esc(b[gr].note)+')':'')+'</td></tr>'; }); });
       h+='</tbody></table>';
+    }
+  }
+  if(opt.sr){
+    var sl=gs.filter(function(g){ return g.lvl==='고'; });
+    var trs='';
+    sl.forEach(function(g){
+      ['1','2','3'].forEach(function(gr){
+        var sj=subjectsOf(g.name,gr);
+        if(sj) trs+='<tr><td class="l prt-name">'+esc(g.name)+'</td><td>'+gr+'</td><td>배우는 과목</td>'
+          +'<td class="l">1학기 '+esc((sj['1']||[]).join(' · ')||'-')+'   /   2학기 '+esc((sj['2']||[]).join(' · ')||'-')+'</td></tr>';
+        var byEx=(RANGE[g.name]||{})[gr];
+        if(byEx) ['0','1','2','3'].forEach(function(ei){
+          var rr=byEx[ei]; if(!rr||!rr.length) return;
+          trs+='<tr><td class="l prt-name">'+esc(g.name)+'</td><td>'+gr+'</td><td>'+['1학기 중간','1학기 기말','2학기 중간','2학기 기말'][+ei]+'</td>'
+            +'<td class="l">'+rr.map(function(x){return esc(x[0])+' : '+esc(x[1]);}).join('   /   ')+'</td></tr>';
+        });
+      });
+    });
+    h+='<div class="prt-sec">배우는 과목 · 시험범위</div>';
+    if(trs){
+      h+='<table class="prt"><colgroup><col style="width:18%"><col style="width:6%"><col style="width:12%"><col style="width:64%"></colgroup>'
+       +'<thead><tr><th>학교</th><th>학년</th><th>구분</th><th>내용</th></tr></thead><tbody>'+trs+'</tbody></table>';
+    } else {
+      h+='<div style="font-size:8.6pt;color:#666;padding:4pt 0">아직 등록된 것이 없습니다. 선생님들이 알려 주시는 대로 채워집니다.</div>';
     }
   }
   h+='<div class="prt-f">출처 · 대구광역시교육청 「'+esc(DATA.src)+'」'
@@ -1040,6 +1073,7 @@ function doExcel(gs,opt){
   if(opt.ex) head=head.concat(['1학기 중간 시작','1학기 중간 종료','1학기 기말 시작','1학기 기말 종료',
                                '2학기 중간 시작','2학기 중간 종료','2학기 기말 시작','2학기 기말 종료']);
   if(opt.bk) head=head.concat(['부교재']);
+  if(opt.sr) head=head.concat(['배우는 과목(1학기)','배우는 과목(2학기)']);
   var aoa=[head];
   rowsFor(gs).forEach(function(x){
     var r=x.r, o=[x.g.name,x.g.lvl,x.g.off,x.grade];
@@ -1049,6 +1083,8 @@ function doExcel(gs,opt){
     if(opt.bk){ var b=BK[x.g.name], gr=x.grade, s='';
       if(b&&b[gr]) s=b[gr].items.map(function(y){return y[0]+' · '+y[1];}).join(' / ')+(b[gr].note?' ('+b[gr].note+')':'');
       o.push(s); }
+    if(opt.sr){ var sj=subjectsOf(x.g.name,x.grade);
+      o.push(sj&&sj['1']?sj['1'].join(' / '):''); o.push(sj&&sj['2']?sj['2'].join(' / '):''); }
     aoa.push(o); });
   var base=(ORG?ORG+'_':'')+'2026학사일정_'+new Date().toISOString().slice(0,10)+'.xlsx';
   var widths=head.map(function(h){ return h==='학교'?24:(h==='부교재'?48:(h.indexOf('시작')>0||h.indexOf('종료')>0?13:12)); });
