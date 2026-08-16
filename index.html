@@ -167,6 +167,12 @@ input.pin{text-align:center;letter-spacing:.55em;text-indent:.55em;font-size:19p
 .radio{display:flex;flex-direction:column;gap:7px}
 .radio label,.checks label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
 .checks{display:flex;gap:14px;flex-wrap:wrap}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:900;
+  background:var(--ink);color:#fff;padding:12px 18px;border-radius:11px;font-size:14px;font-weight:700;
+  box-shadow:0 6px 24px rgba(0,0,0,.28);display:none;max-width:calc(100% - 32px);cursor:pointer}
+#toast.on{display:block}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);
+  margin-left:6px;vertical-align:2px}
 #asheet{z-index:600}   /* 문(#gate)보다 위에 떠야 관리자가 들어올 수 있다 */
 #gate{display:none;position:fixed;inset:0;z-index:500;background:var(--bg);
   align-items:center;justify-content:center;padding:18px;overflow:auto}
@@ -289,6 +295,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="hsheet"><div class="panel" id="hpanel"></div></div>
 <div class="sheet" id="lsheet"><div class="panel sm" id="lpanel"></div></div>
 <div id="gate"><div class="panel sm" id="gpanel"></div></div>
+<div id="toast"></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
 <script src="neis_key.js" onerror="void 0"></script>
@@ -746,11 +753,31 @@ var AUTH=(function(){
   }
   function list(){ return MEM.slice().sort(function(a,b){ return a.at<b.at?1:-1; }); }
 
+  /* 기다리는 사람만 세어 온다 — 전체를 받지 않으므로 가볍다 */
+  function pendingCount(){
+    if(!on()) return Promise.resolve(0);
+    var url='https://firestore.googleapis.com/v1/projects/'+P
+      +'/databases/(default)/documents:runQuery?key='+encodeURIComponent(KEY);
+    var q={structuredQuery:{
+      from:[{collectionId:'members'}],
+      where:{fieldFilter:{field:{fieldPath:'ok'},op:'EQUAL',value:{booleanValue:false}}},
+      select:{fields:[{fieldPath:'n'}]}, limit:50 }};
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(q)})
+      .then(function(r){ if(!r.ok) throw 0; return r.json(); })
+      .then(function(d){
+        var names=[];
+        (d||[]).forEach(function(x){ if(x.document){
+          var f=x.document.fields||{}; names.push((f.n&&f.n.stringValue)||''); } });
+        return names;
+      });
+  }
+
   return {on:on, load:load, signup:signup, login:login, logout:logout,
           me:me, verify:verify, pending:pending, count:function(){return MEM.length;},
           fp:fp, sha256:sha256,
           hasAdmin:function(){return !!ADM;}, isAdmin:isAdmin,
-          adminLogin:adminLogin, adminOut:adminOut, setOk:setOk, list:list, token:token};
+          adminLogin:adminLogin, adminOut:adminOut, setOk:setOk, list:list, token:token,
+          pendingCount:pendingCount};
 })();
 </script>
 <script>/* ===== 관리자 화면 — 승인 · 승인 취소 (김병진T만) ===== */
@@ -762,7 +789,9 @@ var ADMIN=(function(){
   function open(){
     p=document.getElementById('apanel');
     document.getElementById('asheet').classList.add('on');
-    if(AUTH.isAdmin()) list(); else form();
+    if(!AUTH.isAdmin()){ form(); return; }
+    list();                       // 있는 것부터 곧바로 보이고
+    AUTH.load().then(list);       // 최신으로 다시 그린다
   }
   function close(){ document.getElementById('asheet').classList.remove('on'); }
 
@@ -785,7 +814,10 @@ var ADMIN=(function(){
       AUTH.adminLogin(e,w).then(function(r){
         go.disabled=false;
         if(r===0){ if(typeof LOGIN!=='undefined') LOGIN.ungate();
+                   try{ if(window.Notification && Notification.permission==='default')
+                          Notification.requestPermission(); }catch(e){}
                    if(typeof DGCAL!=='undefined'){ DGCAL.whoPaint(); DGCAL.refresh(); }
+                   if(window.DGWATCH) DGWATCH.start();
                    AUTH.load().then(list); return; }
         form(r===2 ? '이 계정은 관리자가 아닙니다.' : '이메일이나 비밀번호가 다릅니다.');
       });
@@ -817,7 +849,9 @@ var ADMIN=(function(){
       +'<button class="btn ghost" id="aout">관리자 로그아웃</button></div>'
       +'<div class="hint" id="amsg"></div></div>';
     bindX();
-    document.getElementById('arel').onclick=function(){ AUTH.load().then(list); };
+    document.getElementById('arel').onclick=function(){
+      if(window.DGWATCH) DGWATCH.once();
+      AUTH.load().then(list); };
     document.getElementById('aout').onclick=function(){ AUTH.adminOut();
       if(typeof DGCAL!=='undefined') DGCAL.whoPaint(); close();
       if(typeof LOGIN!=='undefined' && typeof LOCK_VIEW!=='undefined' && LOCK_VIEW) LOGIN.gate(); };
@@ -825,7 +859,8 @@ var ADMIN=(function(){
       b.onclick=function(){
         var doc=b.parentNode.dataset.doc, want=b.dataset.ok==='1';
         b.disabled=true; b.textContent='…';
-        AUTH.setOk(doc,want).then(function(){ return AUTH.load(); }).then(list)
+        AUTH.setOk(doc,want).then(function(){ return AUTH.load(); })
+          .then(function(){ if(window.DGWATCH) DGWATCH.once(); return list(); })
           .catch(function(){ b.disabled=false; b.textContent=want?'승인':'승인 취소';
             document.getElementById('amsg').textContent='바꾸지 못했습니다. 규칙이 아직 안 올라갔거나 로그인이 풀렸을 수 있습니다.'; });
       };
@@ -2318,12 +2353,49 @@ function admPaint(){
   var a=document.getElementById('admBtn'); if(!a) return;
   if(typeof AUTH==='undefined' || !AUTH.on() || !AUTH.hasAdmin()){ a.style.display='none'; return; }
   a.style.display='';
-  var w=AUTH.isAdmin()? AUTH.pending() : 0;
-  a.textContent = AUTH.isAdmin() ? ('승인 관리'+(w?' '+w:'')) : '관리자';
+  var w=AUTH.isAdmin()? WAIT.length : 0;
+  a.innerHTML = AUTH.isAdmin()
+    ? ('승인 관리'+(w?' '+w+'<span class="dot"></span>':''))
+    : '관리자';
   a.style.borderColor = w? 'var(--red)' : '';
   a.style.color = w? 'var(--red)' : '';
   a.onclick=function(){ ADMIN.open(); };
 }
+
+/* ---------- 새 신청을 지켜본다 (관리자만) ---------- */
+var WAIT=[], watchT=null;
+function toast(msg, fn){
+  var t=document.getElementById('toast'); if(!t) return;
+  t.innerHTML=msg; t.classList.add('on');
+  t.onclick=function(){ t.classList.remove('on'); if(fn) fn(); };
+  clearTimeout(t._h); t._h=setTimeout(function(){ t.classList.remove('on'); }, 12000);
+}
+function watchOnce(first){
+  if(typeof AUTH==='undefined' || !AUTH.isAdmin()) return;
+  AUTH.pendingCount().then(function(names){
+    var fresh=names.filter(function(n){ return WAIT.indexOf(n)<0; });
+    WAIT=names; admPaint();
+    if(!first && fresh.length){
+      var who=fresh.slice(0,3).join(' · ')+(fresh.length>3?' 외 '+(fresh.length-3)+'명':'');
+      toast('새 가입 신청 · <b>'+esc(who)+'</b> — 눌러서 승인하기', function(){ ADMIN.open(); });
+      try{
+        if(window.Notification && Notification.permission==='granted')
+          new Notification('학사일정 · 새 가입 신청', {body:who+' 선생님이 신청하셨습니다.'});
+      }catch(e){}
+    }
+  }).catch(function(){});
+}
+function watchStart(){
+  if(watchT) return;
+  watchOnce(true);
+  watchT=setInterval(function(){
+    if(document.visibilityState==='visible') watchOnce(false);
+  }, 45000);
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState==='visible') watchOnce(false);
+  });
+}
+window.DGWATCH={ start:watchStart, once:function(){ watchOnce(false); } };
 window.DGCAL={ refresh:function(){
   LIST.forEach(function(g){ g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); });
   render();
@@ -2340,6 +2412,7 @@ if(typeof AUTH!=='undefined' && AUTH.on()){
   AUTH.load().then(function(){
     AUTH.verify(); whoPaint();
     if(locked()){ if(AUTH.me()) LOGIN.ungate(); else LOGIN.gate(); }
+    if(AUTH.isAdmin()) watchStart();
   });
 }
 document.getElementById('lsheet').onclick=function(e){ if(e.target.id==='lsheet') LOGIN.close(); };
