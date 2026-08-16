@@ -4,6 +4,9 @@
 var FB_PROJECT = 'daegu-school-calendar';
 var FB_KEY     = 'AIzaSyBeUjjmV6sxAbuTdAYrwzq6x6UkyPlpOPI';
 
+/* 관리자(김병진T)의 사용자 UID — 이 사람만 승인·되돌리기를 할 수 있습니다. */
+var FB_ADMIN = 'diQMyhDGhRMLLhJTMsWYWl3dt0M2';
+
 /* 로그인해야 볼 수 있게 할지.
    true  = 로그인 전에는 아무것도 안 보인다
    false = 보기는 누구나, 고치기만 로그인 */
