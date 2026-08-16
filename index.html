@@ -1593,7 +1593,9 @@ var MEM={};
 function get(k,d){ try{ var v=localStorage.getItem(k); return v==null?d:JSON.parse(v);}catch(e){ return (k in MEM)?MEM[k]:d; } }
 function set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){ MEM[k]=v; } }
 var FAV=get('dgcal.fav',[]); if(!Array.isArray(FAV)) FAV=[];
-var ORG=get('dgcal.org','');
+var ORG=get('dgcal.org',null);            // null = 아직 한 번도 안 정하심
+function myOrg(){ var a=(typeof AUTH!=='undefined'&&AUTH.on())?AUTH.me():null; return (a&&a.o)||''; }
+function orgNow(){ return (ORG===null? myOrg() : ORG); }
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function dt(s){ if(!s) return null; var p=s.split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
@@ -1935,8 +1937,10 @@ function openExport(){
   var p=document.getElementById('epanel');
   p.innerHTML='<div class="ph"><h2>인쇄 · 내보내기</h2><button class="x" id="ex">×</button></div><div class="pb">'
    +'<label class="fl">인쇄물에 넣을 학원 이름</label>'
-   +'<input type="text" id="org" placeholder="예: 수경수학학원" value="'+esc(ORG)+'">'
-   +'<div class="hint">비워 두면 학원 이름 없이 나갑니다. 한 번 넣으면 이 브라우저에 기억해 둡니다.</div>'
+   +'<input type="text" id="org" placeholder="예: 수경수학학원" value="'+esc(orgNow())+'">'
+   +'<div class="hint">'+((ORG===null&&myOrg())
+     ? '가입하실 때 적으신 <b>'+esc(myOrg())+'</b>이(가) 들어가 있습니다. 다르게 내시려면 고쳐 주십시오.'
+     : '비워 두면 학원 이름 없이 나갑니다. 한 번 넣으면 이 브라우저에 기억해 둡니다.')+'</div>'
    +'<label class="fl">무엇을 낼까요</label><div class="radio">'
    +'<label><input type="radio" name="tgt" value="fav"'+(favN?' checked':' disabled')+'> 즐겨찾기 '+favN+'개교'+(favN?'':' (비어 있음)')+'</label>'
    +'<label><input type="radio" name="tgt" value="cur"'+(favN?'':' checked')+'> 지금 보이는 목록 '+listN+'개교</label></div>'
@@ -1974,7 +1978,7 @@ function openExport(){
     if(!gs.length){ alert('낼 학교가 없습니다.'); return; }
     closeExport();
     var fm=(p.querySelector('input[name=fm]:checked')||{}).value||'table';
-    if(kind==='pdf'){ if(fm==='cal') CAL.printCal(favList(), ORG, false); else doPrint(gs,opt); }
+    if(kind==='pdf'){ if(fm==='cal') CAL.printCal(favList(), orgNow(), false); else doPrint(gs,opt); }
     else doExcel(gs,opt);
   }
 }
@@ -1990,7 +1994,7 @@ function doPrint(gs,opt){
   if(opt.bk) titles.push('부교재');
   if(opt.sr) titles.push('배우는 과목 · 시험범위');
   var h='<div class="prt-h">'
-    +(ORG?'<div class="prt-org">'+esc(ORG)+'</div>':'')
+    +(orgNow()?'<div class="prt-org">'+esc(orgNow())+'</div>':'')
     +'<div class="prt-t">2026학년도 '+titles.join(' · ')+'</div>'
     +'<div class="prt-d">'+today()+' 기준 · '+gs.length+'개교</div></div>';
   if(opt.sum||opt.ex){
@@ -2078,7 +2082,7 @@ function doExcel(gs,opt){
     if(opt.sr){ var sj=subjectsOf(x.g.name,x.grade);
       o.push(sj&&sj['1']?sj['1'].join(' / '):''); o.push(sj&&sj['2']?sj['2'].join(' / '):''); }
     aoa.push(o); });
-  var base=(ORG?ORG+'_':'')+'2026학사일정_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  var base=(orgNow()?orgNow()+'_':'')+'2026학사일정_'+new Date().toISOString().slice(0,10)+'.xlsx';
   var widths=head.map(function(h){ return h==='학교'?24:(h==='부교재'?48:(h.indexOf('시작')>0||h.indexOf('종료')>0?13:12)); });
   try{ MiniXlsx.download(aoa,widths,base,'학사일정'); }
   catch(e){
