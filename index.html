@@ -165,6 +165,9 @@ input[type=text]:focus{border-color:var(--teal-l)}
 .radio{display:flex;flex-direction:column;gap:7px}
 .radio label,.checks label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
 .checks{display:flex;gap:14px;flex-wrap:wrap}
+#gate{display:none;position:fixed;inset:0;z-index:500;background:var(--bg);
+  align-items:center;justify-content:center;padding:18px;overflow:auto}
+#gate .panel{max-width:430px;width:100%;max-height:none}
 .showme{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;cursor:pointer;
   margin-top:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--surface2)}
 .showme input{width:17px;height:17px;flex:none;cursor:pointer}
@@ -259,7 +262,7 @@ table.prt thead{display:table-header-group}
       <h1>2026학년도 대구 학사일정 찾기</h1>
       <div class="sub">방학 · 개학 · 정기시험 · 학교 부교재를 학교 이름으로 찾습니다</div>
     </div>
-    <div style="margin-left:auto;display:flex;gap:7px"><button class="btn ghost" id="helpBtn">사용법</button><button class="btn ghost" id="expBtn">인쇄 · 내보내기</button></div>
+    <div style="margin-left:auto;display:flex;gap:7px"><button class="btn ghost" id="whoBtn" style="display:none"></button><button class="btn ghost" id="helpBtn">사용법</button><button class="btn ghost" id="expBtn">인쇄 · 내보내기</button></div>
   </div>
   <div class="searchrow">
     <input id="q" type="search" placeholder="학교 이름 (예: 시지고, 경신, 대구여자)" autocomplete="off">
@@ -278,6 +281,8 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="esheet"><div class="panel sm" id="epanel"></div></div>
 <div class="sheet" id="ssheet"><div class="panel sm" id="spanel"></div></div>
 <div class="sheet" id="hsheet"><div class="panel" id="hpanel"></div></div>
+<div class="sheet" id="lsheet"><div class="panel sm" id="lpanel"></div></div>
+<div id="gate"><div class="panel sm" id="gpanel"></div></div>
 <div id="print"></div>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
@@ -564,6 +569,260 @@ var STORE=(function(){
   return {on:on, live:live, load:load, add:add, markOf:markOf, logOf:logOf, count:function(){return LOG.length;}};
 })();
 </script>
+<script>/* ===== 가입 · 승인 · 로그인 =====
+   신청은 누구나, 승인은 김병진T만(파이어베이스 콘솔에서 ok 를 true 로).
+   비밀번호는 원문을 보내지 않고 지문(SHA-256)으로만 보낸다 — 김병진T도 원문을 모른다.
+   4자리는 경우의 수가 1만 가지라 자물쇠가 아니라 이름표에 가깝다. */
+var AUTH=(function(){
+
+  /* ---------- SHA-256 (라이브러리 없이) ---------- */
+  var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+         0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+         0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+         0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+         0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+         0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+         0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+         0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  function rr(x,n){ return (x>>>n)|(x<<(32-n)); }
+  function utf8(s){ var b=[],i,c; s=unescape(encodeURIComponent(s));
+    for(i=0;i<s.length;i++) b.push(s.charCodeAt(i)&255); return b; }
+  function sha256(str){
+    var b=utf8(str), L=b.length*8;
+    b.push(0x80); while((b.length%64)!==56) b.push(0);
+    b.push(0,0,0,0, (L>>>24)&255,(L>>>16)&255,(L>>>8)&255,L&255);
+    var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    var w=new Array(64),i,j,a,bb,c,d,e,f,g,h,t1,t2,s0,s1;
+    for(i=0;i<b.length;i+=64){
+      for(j=0;j<16;j++) w[j]=(b[i+j*4]<<24)|(b[i+j*4+1]<<16)|(b[i+j*4+2]<<8)|b[i+j*4+3];
+      for(j=16;j<64;j++){
+        s0=rr(w[j-15],7)^rr(w[j-15],18)^(w[j-15]>>>3);
+        s1=rr(w[j-2],17)^rr(w[j-2],19)^(w[j-2]>>>10);
+        w[j]=(w[j-16]+s0+w[j-7]+s1)|0;
+      }
+      a=H[0];bb=H[1];c=H[2];d=H[3];e=H[4];f=H[5];g=H[6];h=H[7];
+      for(j=0;j<64;j++){
+        s1=rr(e,6)^rr(e,11)^rr(e,25);
+        t1=(h+s1+((e&f)^(~e&g))+K[j]+w[j])|0;
+        s0=rr(a,2)^rr(a,13)^rr(a,22);
+        t2=(s0+((a&bb)^(a&c)^(bb&c)))|0;
+        h=g;g=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0;
+      }
+      H[0]=(H[0]+a)|0;H[1]=(H[1]+bb)|0;H[2]=(H[2]+c)|0;H[3]=(H[3]+d)|0;
+      H[4]=(H[4]+e)|0;H[5]=(H[5]+f)|0;H[6]=(H[6]+g)|0;H[7]=(H[7]+h)|0;
+    }
+    return H.map(function(x){ return ('00000000'+(x>>>0).toString(16)).slice(-8); }).join('');
+  }
+  function fp(name,pin){ return sha256('dgcal|'+String(name).replace(/\s/g,'')+'|'+String(pin)); }
+
+  /* ---------- 저장소 ---------- */
+  var P=(typeof FB_PROJECT!=='undefined'&&FB_PROJECT)?FB_PROJECT:'';
+  var KEY=(typeof FB_KEY!=='undefined'&&FB_KEY)?FB_KEY:'';
+  function on(){ return !!(P&&KEY); }
+  function base(){ return 'https://firestore.googleapis.com/v1/projects/'+P
+    +'/databases/(default)/documents/members'; }
+
+  var MEM=[], loaded=false;
+  function load(){
+    if(!on()) return Promise.resolve(0);
+    var all=[];
+    function page(tok){
+      var u=base()+'?key='+encodeURIComponent(KEY)+'&pageSize=300'+(tok?'&pageToken='+encodeURIComponent(tok):'');
+      return fetch(u).then(function(r){ if(!r.ok) throw 0; return r.json(); }).then(function(d){
+        (d.documents||[]).forEach(function(doc){
+          var f=doc.fields||{};
+          all.push({ n:(f.n&&f.n.stringValue)||'', o:(f.o&&f.o.stringValue)||'',
+                     h:(f.h&&f.h.stringValue)||'',
+                     ok:!!(f.ok&&(f.ok.booleanValue===true)),
+                     at:(f.at&&f.at.stringValue)||'' });
+        });
+        if(d.nextPageToken) return page(d.nextPageToken);
+      });
+    }
+    return page('').then(function(){ MEM=all; loaded=true; return all.length; })
+      .catch(function(){ loaded=false; return 0; });
+  }
+
+  function signup(name,org,pin){
+    var body={fields:{ n:{stringValue:name}, o:{stringValue:org||''},
+                       h:{stringValue:fp(name,pin)},
+                       at:{stringValue:new Date().toISOString()},
+                       ok:{booleanValue:false} }};
+    return fetch(base()+'?key='+encodeURIComponent(KEY),
+      {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      .then(function(r){ if(!r.ok) throw 0; return true; });
+  }
+
+  /* ---------- 로그인 ---------- */
+  var ME=null;
+  try{ ME=JSON.parse(localStorage.getItem('dgcal.who')||'null'); }catch(e){}
+  function me(){ return ME; }
+  function nameKey(s){ return String(s||'').replace(/\s/g,''); }
+
+  function find(name){
+    var k=nameKey(name);
+    return MEM.filter(function(m){ return nameKey(m.n)===k; });
+  }
+  /* 0 통과 · 1 이름없음(신청 안 함) · 2 승인대기 · 3 비번틀림 */
+  function check(name,pin){
+    var hit=find(name); if(!hit.length) return 1;
+    var h=fp(name,pin);
+    var same=hit.filter(function(m){ return m.h===h; });
+    if(!same.length) return hit.every(function(m){ return !m.ok; }) ? 2 : 3;
+    return same.some(function(m){ return m.ok; }) ? 0 : 2;
+  }
+  function login(name,pin){
+    var r=check(name,pin);
+    if(r===0){
+      var m=find(name).filter(function(x){ return x.ok; })[0]||{};
+      ME={n:m.n||name, o:m.o||'', at:new Date().toISOString()};
+      try{ localStorage.setItem('dgcal.who', JSON.stringify(ME)); }catch(e){}
+    }
+    return r;
+  }
+  function logout(){ ME=null; try{ localStorage.removeItem('dgcal.who'); }catch(e){} }
+
+  /* 저장된 사람이 아직 승인 상태인지 다시 본다 (승인이 취소되면 풀린다) */
+  function verify(){
+    if(!ME||!loaded) return;
+    var hit=find(ME.n);
+    if(hit.length && !hit.some(function(m){ return m.ok; })) logout();
+  }
+  function pending(){ return MEM.filter(function(m){ return !m.ok; }).length; }
+
+  return {on:on, load:load, signup:signup, login:login, logout:logout,
+          me:me, verify:verify, pending:pending, count:function(){return MEM.length;},
+          fp:fp, sha256:sha256};
+})();
+</script>
+<script>/* ===== 로그인 · 가입 신청 창 ===== */
+var LOGIN=(function(){
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  var p, after=null, GATE=false;
+
+  function open(tab, cb){
+    p=document.getElementById('lpanel'); after=cb||null; GATE=false;
+    draw(tab||'in');
+    document.getElementById('lsheet').classList.add('on');
+  }
+  function close(){ if(!GATE) document.getElementById('lsheet').classList.remove('on'); }
+
+  /* 문 — 로그인 전에는 아무것도 안 보이게 */
+  function gate(){
+    p=document.getElementById('gpanel'); after=null; GATE=true;
+    document.getElementById('gate').style.display='flex';
+    draw('in');
+  }
+  function ungate(){
+    GATE=false;
+    var g=document.getElementById('gate'); if(g) g.style.display='none';
+  }
+
+  function draw(tab){
+    var h='<div class="ph"><h2>'+(GATE
+        ? '2026학년도 대구 학사일정 찾기'
+        : (tab==='in'?'로그인':'가입 신청'))+'</h2>'
+      +(GATE?'':'<button class="x" id="lx">×</button>')+'</div><div class="pb">'
+      +(GATE?'<div class="hint" style="margin:0 0 12px">선생님들이 함께 만드는 자료입니다. '
+        +'<b>로그인하셔야 보실 수 있습니다.</b> 처음이시면 아래 「처음이신가요」에서 신청해 주십시오.</div>':'')
+      +'<div class="gtab wrap" style="margin-bottom:14px">'
+      +'<button data-t="in" class="'+(tab==='in'?'on':'')+'">로그인</button>'
+      +'<button data-t="up" class="'+(tab==='up'?'on':'')+'">처음이신가요</button></div>';
+
+    if(tab==='in'){
+      h+='<label class="fl">이름</label>'
+        +'<input type="text" id="lname" placeholder="예: 홍길동" autocomplete="username">'
+        +'<label class="fl">비밀번호 (숫자 4자리)</label>'
+        +'<input type="password" id="lpin" inputmode="numeric" maxlength="4" placeholder="0000" autocomplete="current-password">'
+        +'<div class="acts"><button class="btn" id="lgo">로그인</button></div>'
+        +'<div class="hint" id="lmsg">한 번 하시면 이 기기에서는 다음부터 저절로 됩니다.</div>';
+    }else{
+      h+='<label class="fl">이름 <span class="hint" style="font-weight:600;margin:0">— 성과 이름을 다 적어 주십시오</span></label>'
+        +'<input type="text" id="uname" placeholder="예: 홍길동">'
+        +'<label class="fl">학원 (안 적으셔도 됩니다)</label>'
+        +'<input type="text" id="uorg" placeholder="예: ○○수학학원">'
+        +'<label class="fl">쓰실 비밀번호 (숫자 4자리)</label>'
+        +'<div style="display:flex;gap:10px">'
+        +'<input type="password" id="upin" inputmode="numeric" maxlength="4" placeholder="0000">'
+        +'<input type="password" id="upin2" inputmode="numeric" maxlength="4" placeholder="한 번 더"></div>'
+        +'<div class="hint">비밀번호는 <b>원문이 보내지지 않습니다.</b> 알아볼 수 없는 지문으로 바뀌어 저장되므로 운영자도 무엇인지 모릅니다. '
+        +'다만 4자리는 경우의 수가 적으니 <b>다른 곳에서 쓰시는 비밀번호는 피해 주십시오.</b></div>'
+        +'<div class="acts"><button class="btn" id="ugo">신청하기</button></div>'
+        +'<div class="hint" id="umsg">신청하시면 김병진T가 확인한 뒤 열어 드립니다. 대개 하루 안에 됩니다.</div>';
+    }
+    h+='</div>';
+    p.innerHTML=h;
+    var xb=document.getElementById('lx'); if(xb) xb.onclick=close;
+    p.querySelectorAll('.gtab button').forEach(function(b){
+      b.onclick=function(){ draw(b.dataset.t); }; });
+    if(tab==='in') bindIn(); else bindUp();
+  }
+
+  function msg(id,t,bad){
+    var e=document.getElementById(id); if(!e) return;
+    e.innerHTML=t; e.style.color=bad?'var(--bad,#c0392b)':'';
+  }
+
+  function bindIn(){
+    var go=document.getElementById('lgo');
+    function run(){
+      var n=(document.getElementById('lname').value||'').trim();
+      var pin=(document.getElementById('lpin').value||'').trim();
+      if(n.replace(/\s/g,'').length<2){ msg('lmsg','성과 이름을 다 적어 주십시오.',1); return; }
+      if(!/^\d{4}$/.test(pin)){ msg('lmsg','비밀번호는 숫자 4자리입니다.',1); return; }
+      go.disabled=true; msg('lmsg','확인하는 중…');
+      AUTH.load().then(function(){
+        var r=AUTH.login(n,pin);
+        go.disabled=false;
+        if(r===0){
+          if(GATE){ ungate(); if(typeof DGCAL!=='undefined'&&DGCAL.refresh) DGCAL.refresh(); }
+          else close();
+          if(typeof DGCAL!=='undefined'&&DGCAL.whoPaint) DGCAL.whoPaint();
+          if(after){ var f=after; after=null; f(); } return; }
+        if(r===1) msg('lmsg','그 이름으로 신청된 것이 없습니다. 위의 <b>「처음이신가요」</b>에서 먼저 신청해 주십시오.',1);
+        else if(r===2) msg('lmsg','아직 <b>승인 전</b>입니다. 김병진T가 열어 드리면 바로 들어오실 수 있습니다.',1);
+        else msg('lmsg','비밀번호가 다릅니다. 잊으셨으면 김병진T에게 말씀해 주십시오.',1);
+      }).catch(function(){ go.disabled=false; msg('lmsg','확인하지 못했습니다. 잠시 뒤 다시 해 주십시오.',1); });
+    }
+    go.onclick=run;
+    document.getElementById('lpin').onkeydown=function(e){ if(e.key==='Enter') run(); };
+  }
+
+  function bindUp(){
+    var go=document.getElementById('ugo');
+    go.onclick=function(){
+      var n=(document.getElementById('uname').value||'').trim();
+      var o=(document.getElementById('uorg').value||'').trim();
+      var a=(document.getElementById('upin').value||'').trim();
+      var b=(document.getElementById('upin2').value||'').trim();
+      if(n.replace(/\s/g,'').length<2){ msg('umsg','성과 이름을 다 적어 주십시오.',1); return; }
+      if(!/^\d{4}$/.test(a)){ msg('umsg','비밀번호는 숫자 4자리입니다.',1); return; }
+      if(a!==b){ msg('umsg','두 번 적으신 비밀번호가 다릅니다.',1); return; }
+      go.disabled=true; msg('umsg','보내는 중…');
+      AUTH.signup(n,o,a).then(function(){
+        p.innerHTML='<div class="ph"><h2>신청했습니다</h2>'+(GATE?'':'<button class="x" id="lx">×</button>')+'</div>'
+          +'<div class="pb"><div class="notice">'
+          +'<b>'+esc(n)+'</b> 선생님으로 신청이 들어갔습니다.<br>'
+          +'김병진T가 확인한 뒤 열어 드립니다. 열리면 <b>같은 이름과 비밀번호</b>로 로그인하시면 됩니다.<br>'
+          +'비밀번호는 잊지 마십시오 — 저장된 것이 지문뿐이라 알려 드릴 수가 없습니다.'
+          +'</div><div class="acts"><button class="btn ghost" id="lclose">'+(GATE?'로그인 화면으로':'닫기')+'</button></div></div>';
+        var xb2=document.getElementById('lx'); if(xb2) xb2.onclick=close;
+        document.getElementById('lclose').onclick=function(){ if(GATE) draw('in'); else close(); };
+      }).catch(function(){ go.disabled=false; msg('umsg','보내지 못했습니다. 잠시 뒤 다시 해 주십시오.',1); });
+    };
+  }
+
+  /* 로그인해야 되는 일을 감싼다 */
+  function need(fn){
+    if(!AUTH.on()){ fn(); return; }          // 저장소가 없으면 예전처럼 그냥 쓴다
+    if(AUTH.me()){ fn(); return; }
+    open('in', fn);
+  }
+
+  return {open:open, close:close, need:need, gate:gate, ungate:ungate};
+})();
+</script>
 <script>/* ===== 수정 제안 ===== */
 var SUGGEST=(function(){
   var API='/api/suggest';
@@ -577,6 +836,11 @@ var SUGGEST=(function(){
   var ME=null;
   try{ ME=JSON.parse(localStorage.getItem('dgcal.me')||'null'); }catch(e){}
   function DIRECT(){ return typeof STORE!=='undefined' && STORE.on(); }   // 바로 고칠 수 있는가
+  function WHO(){                                     // 로그인했으면 그 이름으로 고정
+    var a=(typeof AUTH!=='undefined' && AUTH.on()) ? AUTH.me() : null;
+    if(a) return {name:a.n, org:a.o||'', fixed:true};
+    return {name:(ME&&ME.name)||'', org:(ME&&ME.org)||'', fixed:false};
+  }
 
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -665,9 +929,11 @@ var SUGGEST=(function(){
         +'<input type="text" id="snote" placeholder="예: 학생 시간표에서 확인 / 학교 가정통신문">'
         +'<label class="fl">보내는 분</label>'
         +'<div style="display:flex;gap:10px">'
-        +'<input type="text" id="sname" placeholder="이름 (예: 홍길동)" value="'+esc(ME&&ME.name||'')+'">'
-        +'<input type="text" id="sorg" placeholder="학원 (안 적으셔도 됩니다)" value="'+esc(ME&&ME.org||'')+'"></div>'
-        +'<div class="hint">이름은 <b>성과 이름을 다 적어 주십시오.</b> 쓰시는 분이 많아 「김」만으로는 누구신지 알 수 없습니다. 학원은 안 적으셔도 됩니다. 한 번 넣으면 이 브라우저가 기억합니다.</div>'
+        +'<input type="text" id="sname" placeholder="이름 (예: 홍길동)" value="'+esc(WHO().name)+'"'+(WHO().fixed?' readonly':'')+'>'
+        +'<input type="text" id="sorg" placeholder="학원 (안 적으셔도 됩니다)" value="'+esc(WHO().org)+'"'+(WHO().fixed?' readonly':'')+'></div>'
+        +'<div class="hint">'+(WHO().fixed
+          ? '로그인하신 이름으로 들어갑니다.'
+          : '이름은 <b>성과 이름을 다 적어 주십시오.</b> 쓰시는 분이 많아 「김」만으로는 누구신지 알 수 없습니다. 학원은 안 적으셔도 됩니다. 한 번 넣으면 이 브라우저가 기억합니다.')+'</div>'
         +'<label class="showme"><input type="checkbox" id="sshow"'+((ME&&ME.show===false)?'':' checked')+'>'
         +'<span>다른 선생님께도 제 이름을 보여 주세요</span></label>'
         +'<div class="hint">체크하지 않으시면 화면에는 <b>「익명」</b>으로 나옵니다. 다만 운영자(김병진)는 누가 보내셨는지 볼 수 있습니다.</div>'
@@ -1601,7 +1867,7 @@ function open(key){
     p.querySelectorAll('.gtab button').forEach(function(b){ b.onclick=function(){ gi=+b.dataset.g; draw(); }; });
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
-    document.getElementById('sugb').onclick=function(){ SUGGEST.open(g); };
+    document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
     var nb=document.getElementById('neisb');
     if(nb) nb.onclick=function(){
       var again = nb.dataset.done==='1';
@@ -1871,7 +2137,7 @@ document.getElementById('esheet').onclick=function(e){ if(e.target.id==='esheet'
 document.onkeydown=function(e){
   if(e.key!=='Escape') return;
   // 맨 위에 열린 것 하나만 닫는다 (제안 창을 닫았는데 학교 창까지 닫히면 안 된다)
-  var order=[['ssheet',SUGGEST.close],['hsheet',HELP.close],['esheet',closeExport],['sheet',close]];
+  var order=[['lsheet',LOGIN.close],['ssheet',SUGGEST.close],['hsheet',HELP.close],['esheet',closeExport],['sheet',close]];
   for(var i=0;i<order.length;i++){
     if(document.getElementById(order[i][0]).classList.contains('on')){ order[i][1](); return; }
   }
@@ -1884,17 +2150,38 @@ document.getElementById('foot').innerHTML=
   +'즐겨찾기는 이 브라우저에만 저장됩니다. 다른 기기에서는 따로 담으셔야 합니다.<br>'
   +'학교 사정으로 일정이 바뀔 수 있습니다. 중요한 날짜는 학교 공지로 확인해 주십시오.<br>'
   +'<b style="color:var(--ink2)">자료 판 '+esc(DATA.built)+'</b> · 이 주소는 늘 최신본이 열립니다. 옛것이 보이면 새로고침(F5)을 눌러 주십시오.';
-/* ---------- 윗층(선생님이 고친 것) 받아오기 ---------- */
+/* ---------- 윗층(선생님이 고친 것) · 로그인 ---------- */
 var OPENKEY=null;
+function whoPaint(){
+  var b=document.getElementById('whoBtn'); if(!b) return;
+  if(typeof AUTH==='undefined' || !AUTH.on()){ b.style.display='none'; return; }
+  b.style.display='';
+  var m=AUTH.me();
+  b.textContent = m ? (m.n+' 선생님') : '로그인';
+  b.onclick = m
+    ? function(){ if(confirm(m.n+' 선생님, 로그아웃하시겠습니까?\n다음에 다시 이름과 비밀번호를 넣으셔야 합니다.')){
+        AUTH.logout(); whoPaint(); render(); } }
+    : function(){ LOGIN.open('in'); };
+}
 window.DGCAL={ refresh:function(){
   LIST.forEach(function(g){ g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); });
   render();
   if(OPENKEY && document.getElementById('sheet').classList.contains('on')) open(OPENKEY);
-}};
-render();
+}, whoPaint:whoPaint };
+render(); whoPaint();
 if(typeof STORE!=='undefined' && STORE.on()){
   STORE.load().then(function(n){ if(n) DGCAL.refresh(); });
 }
+function locked(){ return (typeof LOCK_VIEW!=='undefined' && LOCK_VIEW)
+                        && typeof AUTH!=='undefined' && AUTH.on(); }
+if(typeof AUTH!=='undefined' && AUTH.on()){
+  if(locked() && !AUTH.me()) LOGIN.gate();          // 아직 아무도 아니면 곧바로 문을 닫는다
+  AUTH.load().then(function(){
+    AUTH.verify(); whoPaint();
+    if(locked()){ if(AUTH.me()) LOGIN.ungate(); else LOGIN.gate(); }
+  });
+}
+document.getElementById('lsheet').onclick=function(e){ if(e.target.id==='lsheet') LOGIN.close(); };
 })();
 </script>
 </body></html>
