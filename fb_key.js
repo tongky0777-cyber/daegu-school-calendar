@@ -11,3 +11,7 @@ var FB_ADMIN = 'diQMyhDGhRMLLhJTMsWYWl3dt0M2';
    true  = 로그인 전에는 아무것도 안 보인다
    false = 보기는 누구나, 고치기만 로그인 */
 var LOCK_VIEW = true;
+
+/* 등급컷·평균 칸을 모두에게 보일지.
+   false = 관리자(김병진T)만 보인다  ·  true = 모든 선생님이 본다 */
+var SHOW_SCORE = true;
