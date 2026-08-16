@@ -17,9 +17,20 @@ body{margin:0;background:var(--bg);color:var(--ink);
   font-size:15px;line-height:1.55;-webkit-text-size-adjust:100%}
 header{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .hin{max-width:1080px;margin:0 auto;padding:14px 16px 12px}
-.htop{display:flex;align-items:flex-start;gap:10px}
+.htop{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.htop > div:first-child{flex:1 1 210px;min-width:0}
+.hbtns{margin-left:auto;display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+h1,.sub{word-break:keep-all;overflow-wrap:break-word}
 h1{margin:0 0 3px;font-size:17px;font-weight:800;letter-spacing:-.02em}
 .sub{font-size:12px;color:var(--muted);margin-bottom:11px}
+@media(max-width:700px){
+  .hbtns{margin-left:0;width:100%;justify-content:flex-start;flex-wrap:nowrap;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:3px}
+  .hbtns::-webkit-scrollbar{height:0}
+  .hbtns .btn{padding:7px 11px;font-size:12.5px}
+  .htop{gap:8px}
+}
+
 .btn{padding:8px 13px;font-size:13px;font-weight:700;border:1px solid var(--teal);
   background:var(--teal);color:#fff;border-radius:9px;cursor:pointer;white-space:nowrap}
 .btn.ghost{background:var(--surface);color:var(--teal);border-color:var(--line)}
@@ -314,7 +325,7 @@ table.prt thead{display:table-header-group}
       <h1>2026학년도 대구 학사일정 찾기</h1>
       <div class="sub">방학 · 개학 · 정기시험 · 학교 부교재를 학교 이름으로 찾습니다</div>
     </div>
-    <div style="margin-left:auto;display:flex;gap:7px"><button class="btn ghost" id="admBtn" style="display:none"></button><button class="btn ghost" id="whoBtn" style="display:none"></button><button class="btn ghost" id="statBtn">통계</button><button class="btn ghost" id="helpBtn">사용법</button><button class="btn ghost" id="expBtn">인쇄 · 내보내기</button></div>
+    <div class="hbtns"><button class="btn ghost" id="admBtn" style="display:none"></button><button class="btn ghost" id="whoBtn" style="display:none"></button><button class="btn ghost" id="statBtn">통계</button><button class="btn ghost" id="helpBtn">사용법</button><button class="btn ghost" id="expBtn">인쇄 · 내보내기</button></div>
   </div>
   <div class="searchrow">
     <input id="q" type="search" placeholder="학교 이름 (예: 시지고, 경신, 대구여자)" autocomplete="off">
