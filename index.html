@@ -607,7 +607,14 @@ var STORE=(function(){
   }
 
   /* ---------- 화면 자료에 얹기 ---------- */
-  function who(b){ return b.show===false ? '익명' : (b.name+(b.org?' ('+b.org+')':'')); }
+  /* 이름을 남기지 않기로 하신 분은 「익명」으로 보인다.
+     다만 관리자에게는 실명이 보인다 — 가입 화면에 그렇게 적어 두었다. */
+  function adm(){ return !!(typeof AUTH!=='undefined' && AUTH.isAdmin && AUTH.isAdmin()); }
+  function full(b){ return b.name+(b.org?' ('+b.org+')':''); }
+  function who(b){
+    if(b.show!==false) return full(b);
+    return adm() ? full(b)+' · 이름 안 밝힘' : '익명';
+  }
 
   function apply(b){
     if(!b) return;
@@ -702,8 +709,9 @@ var STORE=(function(){
 
   /* 누가 마지막으로 손댔는지 (화면 아래에 한 줄로 쓴다) */
   var MARK={};
-  function stamp(b){ MARK[b.school]={by:who(b), at:(b._at||'').slice(0,10)}; }
-  function markOf(name){ return MARK[name]||null; }
+  /* 이름은 부를 때 만든다 — 관리자로 들어오시면 그때부터 실명이 보이게 하려고 */
+  function stamp(b){ MARK[b.school]={b:b, at:(b._at||'').slice(0,10)}; }
+  function markOf(name){ var m=MARK[name]; return m? {by:who(m.b), at:m.at} : null; }
 
   function logOf(name){
     return LOG.filter(function(x){ return x.school===name; })
@@ -1384,26 +1392,37 @@ var STATS=(function(){
   function viewWho(){
     if(typeof STORE==='undefined' || !STORE.on())
       return '<div class="empty2">저장소가 켜져 있지 않습니다.</div>';
-    var log=STORE.all? STORE.all() : [];
-    var cnt={}, kinds={};
+    var isAdm = (typeof AUTH!=='undefined' && AUTH.isAdmin && AUTH.isAdmin());
+    var all=STORE.all? STORE.all() : [];
+    /* 즐겨찾기(fav)는 선생님이 채운 자료가 아니라 기기끼리 이어 쓰려고 저절로 올라간 것이라 세지 않는다 */
+    var log=all.filter(function(x){ return x.kind!=='fav'; });
+    var favN=all.length-log.length;
+    var cnt={}, kinds={}, anonN=0;
     log.forEach(function(x){
-      var w=(x.show===false)?'익명':(x.name+(x.org?'|'+x.org:''));
-      cnt[w]=(cnt[w]||0)+1;
+      var anon=(x.show===false);
+      if(anon) anonN++;
+      var key = (anon && !isAdm) ? '익명' : (x.name+'|'+(x.org||'')+'|'+(anon?'1':''));
+      cnt[key]=(cnt[key]||0)+1;
       kinds[x.kind]=(kinds[x.kind]||0)+1;
     });
     var rows=Object.keys(cnt).map(function(k){return [k,cnt[k]];}).sort(function(a,b){return b[1]-a[1];});
-    var KN={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',score:'등급컷·평균'};
+    var KN={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',
+            score:'등급컷·평균',plan:'시험 시간표',fav:'즐겨찾기'};
     var h='<div class="hero">'
       + st('모인 자료', log.length, '건')
       + st('채워 주신 분', rows.length, '명')
+      + st('이름 안 밝힘', anonN, '건', 1)
       +'</div>';
     h+=card('누가 얼마나 채워 주셨나',
-      '이름을 보이기로 하신 분만 나옵니다. 「익명」을 고르신 분은 수만 셉니다.',
+      isAdm ? '<b>관리자로 보고 계십니다.</b> 「이름 안 밝힘」을 고르신 분도 실명이 보입니다. 이 화면은 다른 분께는 「익명」으로 나옵니다.'
+            : '이름을 보이기로 하신 분만 나옵니다. 「이름을 남기지 않겠다」를 고르신 분은 수만 셉니다.',
       rows.length
         ? '<table><tr><th class="rk"></th><th>선생님</th><th>학원</th><th style="text-align:right">채운 칸</th></tr>'
-          + rows.slice(0,20).map(function(r,i){ var q=r[0].split('|');
-              return '<tr><td class="rk">'+(i+1)+'</td><td>'+esc(q[0])+'</td>'
+          + rows.slice(0,30).map(function(r,i){ var q=r[0].split('|');
+              return '<tr><td class="rk">'+(i+1)+'</td><td>'+esc(q[0])
+              +(q[2]==='1'?' <span class="tag g">이름 안 밝힘</span>':'')+'</td>'
               +'<td>'+esc(q[1]||'—')+'</td><td class="n">'+r[1]+'</td></tr>'; }).join('')+'</table>'
+          + (favN?'<div class="note">즐겨찾기가 저절로 올라간 '+favN+'건은 세지 않았습니다.</div>':'')
         : '<div class="empty2">아직 없습니다.</div>');
     var kr=Object.keys(kinds).map(function(k){return [KN[k]||k,kinds[k]];}).sort(function(a,b){return b[1]-a[1];});
     if(kr.length) h+=card('어떤 자료가 모였나','', bars(kr,' 건',1));
