@@ -206,6 +206,19 @@ input.pin{text-align:center;letter-spacing:.55em;text-indent:.55em;font-size:19p
 .ptbl input.pin2{width:100%;padding:8px 10px;font-size:13.5px}
 .plantbl td:first-child{width:112px}
 .pday{font-weight:800;color:var(--teal)}
+/* 고침 내역 · 되돌리기 */
+.logtbl{margin-top:8px}
+.logtbl td:first-child{width:84px}
+.logtbl td:last-child{width:auto;color:inherit;font-weight:400}
+.logtbl tr.off{opacity:.5}
+.logtbl tr.off b{text-decoration:line-through}
+.logtbl .btn{padding:5px 10px;font-size:12.5px;margin-left:4px}
+.logdead{font-size:12.5px;color:var(--ink2);font-weight:700}
+.logask{font-size:12.5px;color:var(--red);font-weight:800;margin-right:2px}
+@media(max-width:700px){
+  .logtbl td:last-child{white-space:normal}
+  .logtbl .btn{margin:4px 0 0 4px}
+}
 #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:900;
   background:var(--ink);color:#fff;padding:12px 18px;border-radius:11px;font-size:14px;font-weight:700;
   box-shadow:0 6px 24px rgba(0,0,0,.28);display:none;max-width:calc(100% - 32px);cursor:pointer}
@@ -412,7 +425,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260818-0536';</script>
+<script>var BUILDSTAMP='260819-1454';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -587,7 +600,12 @@ var G1_COMMON = {
 <script>/* ===== 윗층 저장소 — 선생님이 고친 것을 모두가 보게 한다 =====
    바닥층(파일에 박힌 자료)은 손대지 않는다. 이 층이 죽어도 원래 자료는 그대로 보인다.
    저장은 Firestore 를 그냥 주소로 부른다(라이브러리 없음 = 학교·학원 망에서도 막히지 않는다).
-   덧붙이기만 되고 지우기는 안 되게 규칙을 걸어 둔다. 잘못 넣으면 그 위에 바른 값을 얹으면 된다. */
+   덧붙이기만 되고 지우기는 안 되게 규칙을 걸어 둔다. 잘못 넣으면 그 위에 바른 값을 얹으면 된다.
+
+   ★ 되돌리기(260819) — 파이어베이스에서 지우지 않는다.
+     「이 고침은 없던 것으로 하자」는 쪽지(kind:'undo')를 ★덧붙인다★.
+     화면을 그릴 때 그 쪽지가 가리키는 고침만 빼고 바닥층부터 다시 얹는다.
+     그러면 ★그 앞 사람이 넣은 값이 저절로 되살아난다.★  규칙은 손대지 않아도 된다. */
 var STORE=(function(){
   var P=(typeof FB_PROJECT!=='undefined'&&FB_PROJECT)?FB_PROJECT:'';
   var K=(typeof FB_KEY!=='undefined'&&FB_KEY)?FB_KEY:'';
@@ -599,6 +617,60 @@ var STORE=(function(){
     +'/databases/(default)/documents/'+COL; }
   function on(){ return !!(P&&K); }
   function live(){ return okRead; }
+
+  /* ---------- 바닥층 사진 ----------
+     윗층을 한 번이라도 얹기 전의 DATA 를 찍어 둔다. 되돌릴 때 여기서부터 다시 쌓는다.
+     ★ 자리를 갈아치우지 말고 그 안을 비우고 채운다 ★ — app4.js 가 DATA.ranges 같은 것을
+     변수에 담아 두고 쓰기 때문에, 새 객체로 바꾸면 화면이 옛 자리를 계속 본다. */
+  var KEYS=['books','textbook','subjects','ranges','scores','plans'];
+  var BASE=null;
+  var DEAD={};                     // 되돌려진 고침의 id
+  function clone(x){ return JSON.parse(JSON.stringify(x)); }
+  function snap(){
+    if(BASE) return;
+    BASE={ex:(DATA.schools||[]).map(function(r){ return r.ex?clone(r.ex):null; })};
+    KEYS.forEach(function(k){ if(!DATA[k]) DATA[k]={}; BASE[k]=clone(DATA[k]); });
+  }
+  function restore(){
+    if(!BASE) return;
+    KEYS.forEach(function(k){
+      var o=DATA[k]; Object.keys(o).forEach(function(x){ delete o[x]; });
+      var src=clone(BASE[k]); Object.keys(src).forEach(function(x){ o[x]=src[x]; });
+    });
+    (DATA.schools||[]).forEach(function(r,i){
+      var e=BASE.ex[i];
+      if(e==null) delete r.ex; else r.ex=clone(e);
+    });
+    MARK={}; FAVBY={};
+  }
+  /* 무덤 쪽지를 걷어내고 처음부터 다시 얹는다 */
+  function rebuild(){
+    snap(); restore();
+    DEAD={};
+    LOG.forEach(function(b){ if(b.kind==='undo' && b.target) DEAD[b.target]=true; });
+    LOG.forEach(function(b){
+      b._dead=!!(b._id && DEAD[b._id]);      // 통계·주간 브리핑이 되돌려진 것을 안 세게
+      if(b.kind==='undo'){ stamp(b); return; }
+      if(b._dead) return;
+      apply(b);
+    });
+  }
+  /* 되돌리기 — 지우는 것이 아니라 「없던 것으로 하자」를 덧붙인다 */
+  function canUndo(b){
+    if(!b || !b._id || b.kind==='undo') return false;
+    if(DEAD[b._id]) return false;
+    if(adm()) return true;
+    var me=(typeof AUTH!=='undefined'&&AUTH.on())?AUTH.me():null;
+    return !!(me && b.name && b.name===me.n);
+  }
+  function undo(b){
+    if(!canUndo(b)) return Promise.reject(0);
+    var me=(typeof AUTH!=='undefined'&&AUTH.on())?AUTH.me():null;
+    return add({kind:'undo', target:b._id, tkind:b.kind, school:b.school, lvl:b.lvl||'',
+                name:(me&&me.n)||b.name||'', org:(me&&me.o)||'', show:true,
+                note:'되돌림'})
+      .then(function(){ rebuild(); return true; });
+  }
 
   /* ---------- 받아오기 ---------- */
   function load(){
@@ -622,7 +694,7 @@ var STORE=(function(){
     return page('').then(function(){
       all.sort(function(a,b){ return a._at<b._at?-1:(a._at>b._at?1:0); });   // 나중 것이 이긴다
       LOG=all; okRead=true;
-      all.forEach(apply);
+      rebuild();                                  // 되돌려진 것은 빼고 바닥층부터 얹는다
       return all.length;
     }).catch(function(){ okRead=false; return 0; });
   }
@@ -635,8 +707,10 @@ var STORE=(function(){
     return fetch(base()+'?key='+encodeURIComponent(K),
         {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){ if(!r.ok) throw 0; return r.json(); })
-      .then(function(){
+      .then(function(d){
         var c=JSON.parse(JSON.stringify(body)); c._at=at;
+        c._id=(d&&d.name)? d.name.split('/').pop() : '';   // ★ 지금 넣은 것도 바로 되돌릴 수 있게
+        snap();
         LOG.push(c); apply(c);           // 보낸 사람 화면에 바로 보이게
         return true;
       });
@@ -654,6 +728,7 @@ var STORE=(function(){
 
   function apply(b){
     if(!b) return;
+    if(b.kind==='undo') return;                  // 되돌리기 쪽지는 얹지 않는다 (rebuild 가 읽는다)
     if(b.kind!=='fav' && !b.school) return;      // 즐겨찾기는 학교가 없다
     try{
       if(b.kind==='book')      applyBook(b);
@@ -751,7 +826,9 @@ var STORE=(function(){
 
   function logOf(name){
     return LOG.filter(function(x){ return x.school===name; })
-              .map(function(x){ return {by:who(x), at:(x._at||'').slice(0,10), kind:x.kind}; })
+              .map(function(x){ return {by:who(x), at:(x._at||'').slice(0,10), kind:x.kind,
+                                        id:x._id||'', dead:!!(x._id&&DEAD[x._id]),
+                                        can:canUndo(x), raw:x}; })
               .reverse();
   }
 
@@ -765,6 +842,7 @@ var STORE=(function(){
   }
 
   return {on:on, live:live, load:load, add:add, markOf:markOf, logOf:logOf, favOf:favOf,
+          undo:undo, canUndo:canUndo, rebuild:rebuild,
           favCount:favCount, whoOf:who,
           all:function(){return LOG.slice();}, count:function(){return LOG.length;}};
 })();
@@ -1441,8 +1519,9 @@ var STATS=(function(){
     var isAdm = (typeof AUTH!=='undefined' && AUTH.isAdmin && AUTH.isAdmin());
     var all=STORE.all? STORE.all() : [];
     /* 즐겨찾기(fav)는 선생님이 채운 자료가 아니라 기기끼리 이어 쓰려고 저절로 올라간 것이라 세지 않는다 */
-    var log=all.filter(function(x){ return x.kind!=='fav'; });
-    var favN=all.length-log.length;
+    /* 되돌려진 것과 되돌리기 쪽지는 「모인 자료」가 아니다 */
+    var log=all.filter(function(x){ return x.kind!=='fav' && x.kind!=='undo' && !x._dead; });
+    var favN=all.filter(function(x){ return x.kind==='fav'; }).length;
     var cnt={}, kinds={}, anonN=0;
     log.forEach(function(x){
       var anon=(x.show===false);
@@ -1658,6 +1737,7 @@ var WEEK=(function(){
     var a=from+'T00:00:00', b=to+'T23:59:59';
     return STORE.all().filter(function(x){
       if(x.kind==='fav') return false;                 // 즐겨찾기는 사람이 채운 것이 아니다
+      if(x._dead) return false;                        // 되돌려진 것은 없던 일이다
       if(!x.school || !KN[x.kind]) return false;
       if(scope==='fav' && !keys[x.school]) return false;
       var at=x._at||''; return at>=a && at<=b;
@@ -2135,6 +2215,7 @@ var SUGGEST=(function(){
           +'<label class="fl">2학기에 배우는 '+esc(curD)+' 과목</label><div class="checks" id="sj2">'
           + subjectsFor(g.lvl,curD).map(function(s2){ return '<label><input type="checkbox" name="sj2" value="'+esc(s2)+'"> '+esc(s2)+'</label>';}).join('')
           +'</div>'
+          +'<div class="hint" id="sjnow"></div>'
           +'<div class="hint">1학기와 2학기를 <b>한 번에</b> 알려 주실 때 쓰는 자리입니다. 한 학기만 아시면 앞의 「과목 · 부교재」에서 그 학기만 고르셔도 됩니다.</div>';
       }else if(kind==='rng'){
         h+='<label class="fl">어느 시험입니까</label><select id="rex" style="width:100%;border-radius:9px;padding:10px 12px;font-size:14px">'
@@ -2145,8 +2226,9 @@ var SUGGEST=(function(){
           +'</div>'
           +'<label class="fl">과목과 범위</label>'
           +'<textarea id="rtxt" placeholder="예)\n대수 : 수열 전체 + 등차수열의 합\n미적분1 : 극한 ~ 미분계수" '
-          +'style="width:100%;height:120px;padding:11px 12px;border:1.5px solid var(--line);border-radius:9px;'
+          +'style="width:100%;height:150px;padding:11px 12px;border:1.5px solid var(--line);border-radius:9px;'
           +'font-size:14px;line-height:1.7;resize:vertical;font-family:inherit"></textarea>'
+          +'<div class="hint" id="rnow"></div>'
           +'<div class="hint">한 줄에 한 과목씩, <b>과목 : 범위</b> 꼴로 적어 주십시오. 사진으로 갖고 계시면 그대로 보내 주셔도 됩니다.</div>';
       }else if(kind==='plan'){
         var sm2=semNow(g);
@@ -2193,6 +2275,7 @@ var SUGGEST=(function(){
           +'<input type="date" id="sd1" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:9px;font-size:14px"></div>'
           +'<div style="flex:1"><label class="fl">바뀐 종료일</label>'
           +'<input type="date" id="sd2" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:9px;font-size:14px"></div></div>'
+          +'<div class="hint" id="exnow"></div>'
           +'<div class="hint">시험이 없어졌으면 두 칸을 비우고 아래 한마디에 「미실시」라고 적어 주십시오.</div>';
       }
       h+='<label class="fl">어떻게 아셨습니까 (한마디)</label>'
@@ -2239,6 +2322,9 @@ var SUGGEST=(function(){
       document.getElementById('ssend').onclick=send;
       if(kind==='score') paintScore();
       if(kind==='plan') paintPlan();
+      if(kind==='rng') paintRng();
+      if(kind==='subj') paintSubj();
+      if(kind==='exam') paintExam();
       var box=document.getElementById('subbox');
       if(box){
         var paint=function(){
@@ -2285,7 +2371,7 @@ var SUGGEST=(function(){
               : (pubs.some(Boolean) ? '고른 과목마다 등록된 출판사가 다릅니다. 하나씩 보내 주십시오.'
                                     : '아직 등록된 것이 없습니다. 모르시면 비워 두셔도 됩니다.');
           }
-          if(pubEl && !pubEl.dataset.touched && same && pubs[0]) pubEl.value=pubs[0];
+          if(pubEl && !pubEl.dataset.touched) pubEl.value=(same&&pubs[0])?pubs[0]:'';
           var bk=(DATA.books[g.name]||{})[gr];
           var found=[];
           if(bk) picked.forEach(function(s2){
@@ -2297,7 +2383,7 @@ var SUGGEST=(function(){
                        : '고른 과목마다 등록된 부교재가 다릅니다 — '+esc(found.join(' / ')))
               : '아직 등록된 것이 없습니다.';
           }
-          if(bkEl && !bkEl.dataset.touched && sameB && found[0]) bkEl.value=found[0];
+          if(bkEl && !bkEl.dataset.touched) bkEl.value=(sameB&&found[0])?found[0]:'';
         };
         box.addEventListener('change', fill);
         p.querySelectorAll('input[name=sgr],input[name=ssem]').forEach(function(x){
@@ -2396,11 +2482,110 @@ var SUGGEST=(function(){
         h+='<label class="fl">어디서 나온 값입니까</label><div class="checks">'
           +'<label><input type="radio" name="scsrc" value="학교 공식" checked'+dis+'> 학교 공식 발표</label>'
           +'<label><input type="radio" name="scsrc" value="성적표"'+dis+'> 성적표에서</label>'
-          +'<label><input type="radio" name="scsrc" value="기타"'+dis+'> 그 밖</label></div>';
+          +'<label><input type="radio" name="scsrc" value="기타"'+dis+'> 그 밖</label></div>'
+          +'<div class="hint" id="scnow"></div>';
         body.innerHTML=h;
+        var sel=document.getElementById('scsel');
+        if(sel) sel.onchange=scNow;
+        scNow();
         var sb=document.getElementById('ssend'); if(sb) sb.disabled=!SCFIX;
       }
-      p.querySelectorAll('input[name=syr],input[name=sgr5],input[name=ssem5]').forEach(function(x){ x.onchange=fill; });
+      /* 지금 등록된 값을 칸에 채운다 — 한 칸만 고치실 수 있게 */
+      function scNow(){
+        var yr=(p.querySelector('input[name=syr]:checked')||{}).value||YEARS[0];
+        var gr=(p.querySelector('input[name=sgr5]:checked')||{}).value||'1';
+        var sem=(p.querySelector('input[name=ssem5]:checked')||{}).value||'1';
+        var ex=(p.querySelector('input[name=sex5]:checked')||{}).value||'중간';
+        var sub=(document.getElementById('scsel')||{}).value||'';
+        var slot=((((DATA.scores||{})[g.name]||{})[yr]||{})[gr]||{})[sem+ex]||{};
+        var v=slot[sub];
+        var put=function(id,val){ var el=document.getElementById(id); if(el) el.value=(val==null?'':val); };
+        put('scavg', v&&v.avg); put('scsd', v&&v.sd); put('scn', v&&v.n);
+        p.querySelectorAll('.cut').forEach(function(x){
+          var c=(v&&v.cuts)||[], q=c[+x.dataset.i-1]; x.value=(q==null?'':q); });
+        if(v&&v.src){ var rr=p.querySelector('input[name=scsrc][value="'+v.src+'"]'); if(rr) rr.checked=true; }
+        var nb=document.getElementById('scnow');
+        if(nb) nb.innerHTML = v
+          ? '<b style="color:var(--gold)">지금 등록된 값을 불러왔습니다.</b> 고칠 칸만 고쳐 주십시오'
+            + (v.by? ' — '+esc(v.by)+' '+esc(v.at||'') : '') + '.'
+          : '아직 등록된 것이 없습니다.';
+      }
+      p.querySelectorAll('input[name=syr],input[name=sgr5],input[name=ssem5],input[name=sex5]').forEach(function(x){ x.onchange=fill; });
+      fill();
+    }
+
+    /* ---------- 시험범위 칸 — 지금 등록된 것을 그대로 불러온다 ---------- */
+    function paintRng(){
+      var ta=document.getElementById('rtxt'); if(!ta) return;
+      function fill(){
+        var ex=(document.getElementById('rex')||{}).value||'0';
+        var gr=(p.querySelector('input[name=sgr4]:checked')||{}).value||'2';
+        var key=ex+'/'+gr;
+        if(ta.dataset.key===key) return;                 // 같은 칸이면 손대지 않는다
+        var old=(((DATA.ranges||{})[g.name]||{})[gr]||{})[String(ex)]||[];
+        ta.value=old.map(function(x){ return x[1]? x[0]+' : '+x[1] : x[0]; }).join('\n');
+        ta.dataset.key=key;
+        var now=document.getElementById('rnow');
+        if(now) now.innerHTML = old.length
+          ? '<b style="color:var(--gold)">지금 등록된 것을 그대로 불러왔습니다.</b> 고칠 줄만 고치고 나머지는 두십시오.<br>'
+            + '여기 남는 것이 <b>그 시험 그 학년의 전부</b>가 됩니다 — 지운 줄은 없어집니다.'
+          : '아직 등록된 것이 없습니다. 아시는 것만 적어 주셔도 됩니다.';
+      }
+      p.querySelectorAll('input[name=sgr4]').forEach(function(x){ x.onchange=fill; });
+      var sel=document.getElementById('rex'); if(sel) sel.onchange=fill;
+      fill();
+    }
+
+    /* ---------- 시험일정 정정 칸 — 지금 날짜를 미리 넣는다 ---------- */
+    function paintExam(){
+      var d1=document.getElementById('sd1'), d2=document.getElementById('sd2');
+      if(!d1||!d2) return;
+      function fill(){
+        var ei=+((document.getElementById('sex')||{}).value||0);
+        var gr=p.querySelector('input[name=sgr2]:checked');
+        var r=g.rows[gr?+gr.value:0]||{};
+        var e=(r.ex||[])[ei]||[];
+        var key=ei+'/'+(gr?gr.value:'0');
+        if(d1.dataset.key!==key){
+          d1.value=e[0]||''; d2.value=e[1]||e[0]||''; d1.dataset.key=key;
+        }
+        var now=document.getElementById('exnow');
+        if(now) now.innerHTML = e[0]
+          ? '지금 등록된 것 — <b>'+esc(e[0])+(e[1]&&e[1]!==e[0]?' ~ '+esc(e[1]):'')+'</b>. 다르면 고쳐 주십시오.'
+          : '지금은 등록된 날짜가 없습니다.';
+      }
+      p.querySelectorAll('input[name=sgr2]').forEach(function(x){ x.onchange=fill; });
+      var sel=document.getElementById('sex'); if(sel) sel.onchange=fill;
+      fill();
+    }
+
+    /* ---------- 한 해 과목 칸 — 지금 등록된 것에 체크해 둔다 ----------
+       ★ 다른 교과(국어·영어…) 과목은 이 화면에 안 나온다.
+         그대로 두지 않으면 보내는 순간 지워지므로 SJKEEP 에 담아 함께 보낸다. */
+    var SJKEEP={'1':[], '2':[]};
+    function paintSubj(){
+      function fill(){
+        var gr=(p.querySelector('input[name=sgr3]:checked')||{}).value||'2';
+        var reg=((DATA.subjects||{})[g.name]||{})[gr]||{};
+        var kept=[];
+        ['1','2'].forEach(function(sm){
+          var box=document.getElementById('sj'+sm); if(!box) return;
+          var have=(reg[sm]||[]).slice();
+          var ins=Array.prototype.slice.call(box.querySelectorAll('input'));
+          var opts=ins.map(function(x){ return x.value; });
+          SJKEEP[sm]=have.filter(function(x){ return opts.indexOf(x)<0; });
+          SJKEEP[sm].forEach(function(x){ if(kept.indexOf(x)<0) kept.push(x); });
+          ins.forEach(function(x){ x.checked = have.indexOf(x.value)>=0; });
+        });
+        var now=document.getElementById('sjnow');
+        if(!now) return;
+        var any=(reg['1']||[]).length||(reg['2']||[]).length;
+        now.innerHTML = (any
+          ? '<b style="color:var(--gold)">지금 등록된 과목에 체크해 두었습니다.</b> 더할 것만 누르고, 뺄 것은 체크를 지우십시오.'
+          : '아직 등록된 것이 없습니다.')
+          + (kept.length ? '<br>다른 교과 과목 <b>'+kept.length+'개</b>('+esc(kept.join(' · '))+')는 그대로 둡니다.' : '');
+      }
+      p.querySelectorAll('input[name=sgr3]').forEach(function(x){ x.addEventListener('change', fill); });
       fill();
     }
 
@@ -2431,8 +2616,8 @@ var SUGGEST=(function(){
         if(!body.subjects.length){ alert('과목을 하나 이상 골라 주십시오.'); return; }
       }else if(kind==='subj'){
         body.grade=(p.querySelector('input[name=sgr3]:checked')||{}).value;
-        body.sj1=Array.prototype.map.call(p.querySelectorAll('input[name=sj1]:checked'),function(x){return x.value;});
-        body.sj2=Array.prototype.map.call(p.querySelectorAll('input[name=sj2]:checked'),function(x){return x.value;});
+        body.sj1=SJKEEP['1'].concat(Array.prototype.map.call(p.querySelectorAll('input[name=sj1]:checked'),function(x){return x.value;}));
+        body.sj2=SJKEEP['2'].concat(Array.prototype.map.call(p.querySelectorAll('input[name=sj2]:checked'),function(x){return x.value;}));
         if(!body.sj1.length && !body.sj2.length){ alert('배우는 과목을 하나 이상 골라 주십시오.'); return; }
       }else if(kind==='rng'){
         body.exam=+document.getElementById('rex').value;
@@ -2636,8 +2821,16 @@ var HELP=(function(){
     +'<p class="ht">학교를 연 다음 맨 아래 <b>「이 학교 정보 고쳐 주기 · 부교재 알려 주기」</b> 를 누르십시오. 여섯 갈래가 있습니다.<br>'
     +'과목·부교재 / 한 해 과목 한꺼번에 / 시험범위 / <b>시험 시간표</b> / <b>등급컷·평균</b> / 시험일정 정정<br>'
     +'<b>누른 즉시 모두에게 반영됩니다.</b> 승인을 기다리지 않으셔도 됩니다.<br>'
+    +'<b>이미 들어 있는 것은 칸에 그대로 나옵니다.</b> 처음부터 다시 적지 마시고 <b>고칠 데만 고치시면 됩니다.</b> '
+    +'시험범위는 등록된 줄이 통째로 나오니 틀린 줄만 손보시면 됩니다.<br>'
     +'이름을 남길지는 고르실 수 있습니다. 남기지 않으셔도 됩니다 — 다만 관리자는 누가 넣었는지 알 수 있습니다.<br>'
     +'<span class="hnote">시험 시간표는 날짜별로 무슨 과목을 치는지 1·2·3학년 따로 넣습니다. 등급컷은 재원생이 아니라 학교에서 나온 값을 넣어 주십시오.</span></p>'
+    +'<h3>7-1 · 잘못 넣으셨으면 되돌리십시오</h3>'
+    +'<p class="ht">학교 화면 맨 아래 <b>「고침 내역 N건 ▼ 펴기」</b> 를 누르면 그 학교를 누가 언제 무엇을 고쳤는지 다 나옵니다.<br>'
+    +'<b>본인이 넣으신 줄</b>에 <b>「되돌리기」</b> 가 붙습니다. 누르면 한 번 더 여쭙고, 「예」 를 누르시면 없던 일이 됩니다.<br>'
+    +'<b>되돌리면 그 앞 선생님이 넣으신 값이 되살아납니다.</b> 앞에 아무것도 없었으면 원래 교육청 자료로 돌아갑니다. '
+    +'남의 것까지 지워질 걱정은 안 하셔도 됩니다.<br>'
+    +'<span class="hnote">지워지는 것은 없습니다. 되돌린 것도 내역에 남습니다. 남의 것은 운영자만 되돌립니다.</span></p>'
     +'<h3>8 · 달력으로 겹쳐 보기</h3>'
     +'<p class="ht"><b>「달력」</b> 을 누르면 고른 학교들의 일정이 한 달력에 겹쳐 나옵니다. 관심 학교만 골라 두면 <b>보강 잡을 때 이 화면 하나면 됩니다.</b><br>'
     +'중간(주황) · 기말(빨강) · 방학식(청록) · 개학(파랑)으로 칠해집니다. 인쇄해도 색이 나옵니다.</p>'
@@ -3101,14 +3294,75 @@ function semTag(s){
 }
 function rangesOf(name,grade){ var s=RANGE[name]; return (s&&s[grade])||null; }
 function DIRECT(){ return typeof STORE!=='undefined' && STORE.on(); }
+/* ---------- 고침 내역 · 되돌리기 ----------
+   되돌리기는 파이어베이스에서 지우는 것이 아니라 「없던 것으로 하자」를 덧붙이는 것이다.
+   그래서 되돌리면 ★그 앞 사람이 넣은 값이 되살아난다.★  지워지는 것은 없다. */
+var LOGOPEN=false, LOGASK='';
+var LOGKN={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',
+           score:'등급컷·평균',plan:'시험 시간표',undo:'되돌림'};
+var LOGEX=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'];
+function logWhat(x){
+  var b=x.raw||{};
+  if(b.kind==='undo') return '되돌림 — '+(LOGKN[b.tkind]||'고침');
+  var t=LOGKN[b.kind]||b.kind, d=[];
+  if(b.grade) d.push(b.grade+'학년');
+  if(b.kind==='rng'||b.kind==='exam') d.push(LOGEX[+b.exam]||'');
+  if(b.kind==='plan'||b.kind==='score') d.push((b.sem||'')+'학기 '+(b.exam||'')+'고사');
+  if(b.kind==='book'){ if(b.sem) d.push(b.sem==='12'?'1·2학기':b.sem+'학기');
+                       d.push((b.subjects||[]).join(' · ')); }
+  if(b.kind==='score'&&b.subject) d.push(b.subject);
+  d=d.filter(Boolean);
+  return t+(d.length? ' · '+d.join(' · ') : '');
+}
 function markLine(name){
   if(typeof STORE==='undefined' || !STORE.on()) return '';
-  var lg=STORE.logOf(name); if(!lg.length) return '';
-  var KN={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',score:'등급컷·평균',plan:'시험 시간표'};
-  var h='<div class="hint" style="text-align:center;margin-top:10px">최근 고침 · '
-    +esc(lg[0].by)+' · '+esc(lg[0].at)+' · '+esc(KN[lg[0].kind]||'');
-  if(lg.length>1) h+=' <span style="opacity:.7">(그 전 '+(lg.length-1)+'건)</span>';
-  return h+'</div>';
+  var lg=STORE.logOf(name).filter(function(x){ return x.kind!=='fav'; });
+  if(!lg.length) return '';
+  var h='<div class="hint" style="text-align:center;margin-top:10px">'
+    +'<button class="btn ghost" id="mlog" style="padding:6px 12px;font-size:12.5px">'
+    +'고침 내역 '+lg.length+'건 '+(LOGOPEN?'▲ 접기':'▼ 펴기')+'</button></div>';
+  if(!LOGOPEN){
+    return h+'<div class="hint" style="text-align:center;margin-top:6px">최근 · '
+      +esc(lg[0].by)+' · '+esc(lg[0].at)+' · '+esc(logWhat(lg[0]))+'</div>';
+  }
+  h+='<table class="logtbl">'+lg.slice(0,60).map(function(x){
+    var right='';
+    if(x.dead) right='<span class="logdead">되돌려짐</span>';
+    else if(LOGASK && LOGASK===x.id)
+      right='<span class="logask">정말 되돌릴까요?</span>'
+        +'<button class="btn logyes" data-u="'+esc(x.id)+'">예</button>'
+        +'<button class="btn ghost logno">아니요</button>';
+    else if(x.can) right='<button class="btn ghost logundo" data-u="'+esc(x.id)+'">되돌리기</button>';
+    return '<tr'+(x.dead?' class="off"':'')+'><td><span class="pday">'+esc(x.at)+'</span></td>'
+      +'<td><b>'+esc(logWhat(x))+'</b>'
+      +'<div class="hint" style="margin:2px 0 0">'+esc(x.by)+'</div></td>'
+      +'<td style="text-align:right">'+right+'</td></tr>';
+  }).join('')+'</table>'
+   +'<div class="hint">되돌리면 <b>그 앞 선생님이 넣으신 값이 되살아납니다.</b> 앞에 아무것도 없었으면 원래 교육청 자료로 돌아갑니다.<br>'
+   +'되돌린 것도 내역에 남습니다 — <b>지워지는 것은 없습니다.</b> 되돌릴 수 있는 것은 <b>본인이 넣으신 것</b>입니다(운영자는 전부).</div>';
+  if(lg.length>60) h+='<div class="hint">가장 가까운 60건만 보입니다.</div>';
+  return h;
+}
+function bindLog(p, name){
+  var ml=document.getElementById('mlog');
+  if(ml) ml.onclick=function(){ LOGOPEN=!LOGOPEN; LOGASK=''; if(DGCAL) DGCAL.refresh(); };
+  p.querySelectorAll('.logundo').forEach(function(b){
+    b.onclick=function(){ LOGASK=b.dataset.u; DGCAL.refresh(); }; });
+  p.querySelectorAll('.logno').forEach(function(b){
+    b.onclick=function(){ LOGASK=''; DGCAL.refresh(); }; });
+  p.querySelectorAll('.logyes').forEach(function(b){
+    b.onclick=function(){
+      var id=b.dataset.u;
+      var row=STORE.logOf(name).filter(function(x){ return x.id===id; })[0];
+      if(!row){ LOGASK=''; DGCAL.refresh(); return; }
+      b.disabled=true; b.textContent='되돌리는 중…';
+      STORE.undo(row.raw).then(function(){
+        LOGASK=''; DGCAL.refresh(); toast('되돌렸습니다. 앞의 값이 되살아났습니다.');
+      }).catch(function(){
+        b.disabled=false; b.textContent='예';
+        alert('되돌리지 못했습니다. 인터넷을 확인하시고 다시 눌러 주십시오.');
+      });
+    }; });
 }
 /* 시험 시간표 — 날짜별로 그날 치는 과목 */
 function planBox(name, grade){
@@ -3477,6 +3731,7 @@ function open(key){
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
+    bindLog(p, g.name);
     var nb=document.getElementById('neisb');
     if(nb) nb.onclick=function(){
       var again = nb.dataset.done==='1';
