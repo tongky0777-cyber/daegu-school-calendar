@@ -256,14 +256,16 @@ input.pin{text-align:center;letter-spacing:.55em;text-indent:.55em;font-size:19p
 #wpanel td.more,#tpanel td.more{color:var(--muted);font-size:12.5px}
 /* 학교마다 무엇을 쓰나 · 무엇을 고치셨나 (260819) */
 #tpanel td.sn{font-weight:800;color:var(--ink);vertical-align:top;padding-top:11px;
-  border-right:1px solid var(--line);width:132px}
+  border-right:1px solid var(--line);width:158px;line-height:1.45}
+#tpanel .bkall tr.gtop td{border-top:1.5px solid var(--line)}
+#tpanel .bkall tr.gtop:first-child td{border-top:0}
 #tpanel .whot td{vertical-align:top;font-size:13px}
 #tpanel .whot td.dt{width:78px;color:var(--muted);font-weight:700;font-size:12px}
 #tpanel .whot td.wl{line-height:1.65;word-break:break-word}
 #tpanel .whot tr.off{opacity:.45}
 #tpanel .whot tr.off td.wl b{text-decoration:line-through}
 @media(max-width:760px){
-  #tpanel td.sn{width:88px;font-size:12.5px}
+  #tpanel td.sn{width:100px;font-size:12px}
   #tpanel .whot td{font-size:12.5px;padding:8px 4px}
   #tpanel .whot td.dt{width:62px}
 }
@@ -438,7 +440,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260819-1552';</script>
+<script>var BUILDSTAMP='260819-1604';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -1352,36 +1354,49 @@ var STATS=(function(){
       h+=twoSem('1학기에 많이 쓰는 것 ('+n1+'칸)', top5(by1),
                 '2학기에 많이 쓰는 것 ('+n2+'칸)', top5(by2));
     }
-    /* ★ 올라온 학교는 전부 보인다 — 「많이 쓰는 것」만으로는 우리 학교를 못 찾는다 (김병진T 260819) */
-    var names=Object.keys(schItems).sort();
-    if(names.length){
+    /* ★ 교재마다 어느 학교 · 어느 학년이 쓰는지 한 번에 (김병진T 260819)
+       학교별로 늘어놓으면 「올림포스 유형편을 어디서 쓰나」를 눈으로 훑어야 한다.
+       교재를 머리로 세우면 한 줄에 다 들어온다. */
+    var grp={};
+    Object.keys(schItems).forEach(function(nm){
+      schItems[nm].forEach(function(x){                 // x = [학년, 과목, 부교재, 학기]
+        var key = !x[2] ? '\u0002모름' : (x[2]==='부교재 없음' ? '\u0001안씀' : x[2]);
+        var G=grp[key]=grp[key]||{n:0, sch:{}, ord:[]};
+        G.n++;
+        var k2=nm+'|'+x[0];
+        if(!G.sch[k2]){ G.sch[k2]={nm:nm, gr:x[0], subs:[], sem:x[3]||''}; G.ord.push(k2); }
+        if(G.sch[k2].subs.indexOf(x[1])<0) G.sch[k2].subs.push(x[1]);
+      });
+    });
+    var keys=Object.keys(grp).sort(function(a,b){
+      var sa=(a.charCodeAt(0)<3)?1:0, sb=(b.charCodeAt(0)<3)?1:0;   // 「안 씀」·「모름」은 맨 뒤로
+      if(sa!==sb) return sa-sb;
+      if(sa) return a<b?-1:1;
+      return grp[b].n-grp[a].n || (a<b?-1:1);
+    });
+    if(keys.length){
+      var real=keys.filter(function(k2){ return k2.charCodeAt(0)>2; }).length;
       var trs='';
-      names.forEach(function(nm){
-        var its=schItems[nm].slice().sort(function(a,b2){
-          return a[0]===b2[0] ? (a[1]<b2[1]?-1:1) : (a[0]<b2[0]?-1:1); });
-        its.forEach(function(x,i){
-          trs+='<tr>'+(i===0
-              ? '<td rowspan="'+its.length+'" class="sn">'+esc(nm)+'</td>'
-              : '')
-            +'<td>'+esc(x[0])+'학년</td><td>'+esc(x[1])+'</td>'
-            +'<td>'+(x[2]&&x[2]!=='부교재 없음' ? '<b>'+esc(x[2])+'</b>'
-                    : (x[2]==='부교재 없음' ? '<span class="tag g">안 씁니다</span>' : '<span class="tag g">아직 모름</span>'))
-            +(x[3]?' <span class="tag t">'+esc(x[3]==='12'?'1·2':x[3])+'학기</span>':'')+'</td></tr>';
+      keys.forEach(function(k2){
+        var G=grp[k2];
+        var list=G.ord.map(function(o){ return G.sch[o]; })
+          .sort(function(a,b2){ return a.nm===b2.nm ? (a.gr<b2.gr?-1:1) : (a.nm<b2.nm?-1:1); });
+        var label = k2.charCodeAt(0)>2 ? '<b>'+esc(k2)+'</b>'
+                  : (k2.charCodeAt(0)===1 ? '<span class="tag g">부교재를 안 씁니다</span>'
+                                          : '<span class="tag g">아직 모릅니다</span>');
+        list.forEach(function(v,i2){
+          trs+='<tr'+(i2===0?' class="gtop"':'')+'>'
+            +(i2===0 ? '<td rowspan="'+list.length+'" class="sn">'+label
+                       +'<div class="hint" style="margin:2px 0 0">'+G.n+'칸 · '+list.length+'곳</div></td>' : '')
+            +'<td>'+esc(v.nm)+'</td><td>'+esc(v.gr)+'학년</td>'
+            +'<td>'+esc(v.subs.join(' · '))
+            +(v.sem?' <span class="tag t">'+esc(v.sem==='12'?'1·2':v.sem)+'학기</span>':'')+'</td></tr>';
         });
       });
-      h+=card('학교마다 무엇을 쓰나 · '+esc(F.dept)+(F.sem==='전체'?'':' · '+esc(F.sem)),
-        '자료가 올라온 <b>'+names.length+'개교 전부</b>입니다. 학교 이름으로 찾으실 때 쓰십시오.',
-        '<table class="bkall"><tr><th>학교</th><th>학년</th><th>과목</th><th>부교재</th></tr>'+trs+'</table>');
-    }
-    var top=rows[0];
-    if(top){
-      var ls=byBook[top[0]].slice(0,14);
-      h+=card('「'+esc(top[0])+'」을 쓰는 학교', '가장 많이 쓰이는 교재의 학교 목록입니다.',
-        '<table><tr><th>학교</th><th>학년</th><th>과목</th><th>학기</th></tr>'
-        + ls.map(function(x){ return '<tr><td>'+esc(x[0])+'</td><td>'+esc(x[1])+'학년</td><td>'+esc(x[2])+'</td>'
-            +'<td>'+(x[3]?'<span class="tag t">'+esc(x[3]==='12'?'1·2':x[3])+'학기</span>':'<span class="tag">-</span>')+'</td></tr>'; }).join('')
-        + (byBook[top[0]].length>14?'<tr><td colspan="4" class="more">… 그 밖 '+(byBook[top[0]].length-14)+'칸</td></tr>':'')
-        +'</table>');
+      h+=card('교재마다 어느 학교가 쓰나 · '+esc(F.dept)+(F.sem==='전체'?'':' · '+esc(F.sem)),
+        '자료가 올라온 <b>'+Object.keys(schItems).length+'개교</b> · 교재 <b>'+real+'종</b>입니다. '
+        +'많이 쓰는 것부터 놓았습니다 — <b>「안 씁니다」와 「아직 모릅니다」는 맨 뒤</b>입니다.',
+        '<table class="bkall"><tr><th>부교재</th><th>학교</th><th>학년</th><th>과목</th></tr>'+trs+'</table>');
     }
     return h;
   }
@@ -2991,7 +3006,7 @@ var HELP=(function(){
     +'<p class="ht"><b>「통계」</b> 에는 다섯 가지가 있습니다 — 부교재 · 교과서 · 등급컷·평균 · 시험일정 · 참여 현황.<br>'
     +'부교재와 교과서는 <b>1학기·2학기로 나눠</b> 보실 수 있습니다.<br>'
     +'등급컷 순위는 <b>다섯 학교 이상 모여야</b> 나옵니다. 몇 곳으로 낸 1등은 1등이 아니라서 그렇게 해 두었습니다.<br>'
-    +'부교재에는 <b>「학교마다 무엇을 쓰나」</b> 가 있습니다 — 많이 쓰는 것만이 아니라 <b>자료가 올라온 학교를 전부</b> 학교 이름 순으로 봅니다.</p>'
+    +'부교재에는 <b>「교재마다 어느 학교가 쓰나」</b> 가 있습니다 — 교재 하나에 <b>그것을 쓰는 학교와 학년이 한 줄로</b> 묶여 나옵니다.</p>'
     +'<h3>10 · 인쇄하고 엑셀로 받기</h3>'
     +'<p class="ht">오른쪽 위 <b>「인쇄 · 내보내기」</b> 를 누릅니다. <b>학원 이름</b>을 넣으면 인쇄물 맨 위에 찍히고, 한 번 넣으면 기억합니다.<br>'
     +'<b>PDF</b> — 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 파일로 남습니다. 휴대폰에서도 됩니다 (아이폰은 공유에서 「PDF로 저장」, 안드로이드는 프린터 목록에서 「PDF로 저장」).<br>'
