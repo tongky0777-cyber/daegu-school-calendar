@@ -254,6 +254,19 @@ input.pin{text-align:center;letter-spacing:.55em;text-indent:.55em;font-size:19p
 #wpanel td.n,#tpanel td.n{font-weight:800;color:var(--teal);text-align:right}
 #wpanel td.rk,#tpanel td.rk{width:26px;color:var(--muted);font-weight:800;font-size:12px}
 #wpanel td.more,#tpanel td.more{color:var(--muted);font-size:12.5px}
+/* 학교마다 무엇을 쓰나 · 무엇을 고치셨나 (260819) */
+#tpanel td.sn{font-weight:800;color:var(--ink);vertical-align:top;padding-top:11px;
+  border-right:1px solid var(--line);width:132px}
+#tpanel .whot td{vertical-align:top;font-size:13px}
+#tpanel .whot td.dt{width:78px;color:var(--muted);font-weight:700;font-size:12px}
+#tpanel .whot td.wl{line-height:1.65;word-break:break-word}
+#tpanel .whot tr.off{opacity:.45}
+#tpanel .whot tr.off td.wl b{text-decoration:line-through}
+@media(max-width:760px){
+  #tpanel td.sn{width:88px;font-size:12.5px}
+  #tpanel .whot td{font-size:12.5px;padding:8px 4px}
+  #tpanel .whot td.dt{width:62px}
+}
 .hero{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:2px}
 .st{flex:1;min-width:126px;background:var(--surface2);border-radius:11px;padding:12px 14px}
 .st .k{font-size:11.5px;font-weight:800;color:var(--muted);letter-spacing:.04em}
@@ -425,7 +438,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260819-1536';</script>
+<script>var BUILDSTAMP='260819-1552';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -1155,7 +1168,7 @@ var STATS=(function(){
   var TEAL=['#0f7766','#2c8977','#4a9c8a','#68af9d','#86c2b0','#a4d5c3','#c2e0d6','#d0e7de','#dceee7','#e6f2ef'];
   var MIN_SCHOOL=5;          // 이보다 적으면 순위를 감춘다
   var p, tab='book';
-  var F={year:'2026', grade:'1', ex:'2중간', subject:'', dept:'수학', sem:'전체'};
+  var F={year:'2026', grade:'1', ex:'2중간', subject:'', dept:'수학', sem:'전체', who:'전체'};
 
   /* ---------- 어느 학기 과목인가 ----------
      고1은 전국이 같아 이름만 보고 안다(G1_COMMON).
@@ -1232,6 +1245,37 @@ var STATS=(function(){
     else if(tab==='cal') body.innerHTML=viewCal();
     else body.innerHTML=viewWho();
     if(tab==='book'||tab==='pub'){ bindDept(); bindSem(); }
+    if(tab==='who') bindWho();
+  }
+  /* 한 건이 무엇을 바꿨는지 한 줄로 (운영자 표에서 쓴다) */
+  var EXN4=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'];
+  function whatOf(b){
+    var KN2={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',
+             score:'등급컷·평균',plan:'시험 시간표'};
+    var g=b.grade? b.grade+'학년':'';
+    function J(a){ return a.filter(Boolean).join(' · '); }
+    if(b.kind==='undo') return '되돌림 — '+(KN2[b.tkind]||'고침');
+    if(b.kind==='rng') return J([g, EXN4[+b.exam]||'',
+      (b.ranges||'').split('\n').map(function(x){return x.trim();}).filter(Boolean).join('  /  ')]);
+    if(b.kind==='book') return J([g, (b.sem==='12'?'1·2학기':(b.sem?b.sem+'학기':'')),
+      (b.subjects||[]).join('·'), b.pub?'교과서 '+b.pub:'', b.book?'부교재 '+b.book:'']);
+    if(b.kind==='subj') return J([g, '1학기 '+((b.sj1||[]).join('·')||'-'), '2학기 '+((b.sj2||[]).join('·')||'-')]);
+    if(b.kind==='exam') return J([EXN4[+b.exam]||'',
+      b.start? b.start+(b.end&&b.end!==b.start?' ~ '+b.end:'') : '(날짜 지움)']);
+    if(b.kind==='plan') return J([(b.year||'')+' '+g, (b.sem||'')+'학기 '+(b.exam||'')+'고사',
+      Object.keys(b.days||{}).sort().map(function(k){ var q=k.split('-');
+        return (+q[1])+'/'+(+q[2])+' '+b.days[k]; }).join('  /  ')]);
+    if(b.kind==='score'){
+      var cs=(b.cuts||[]).map(function(v,i){ return v==null?null:((i+1)+'등급 '+v); }).filter(Boolean);
+      return J([(b.year||'')+' '+g, (b.sem||'')+'학기 '+(b.exam||'')+'고사', b.subject||'',
+        b.avg!=null? '평균 '+b.avg+(b.sd!=null?' (표준편차 '+b.sd+')':'')+(b.n!=null?' · '+b.n+'명':'') : '',
+        cs.join(' · ')]);
+    }
+    return '';
+  }
+  function bindWho(){
+    p.querySelectorAll('.wchip').forEach(function(b){
+      b.onclick=function(){ F.who=b.dataset.w; draw(); }; });
   }
   function bindDept(){
     p.querySelectorAll('.dchip').forEach(function(b){
@@ -1265,7 +1309,7 @@ var STATS=(function(){
 
   /* ---------- 1. 부교재 ---------- */
   function viewBook(){
-    var BK=DATA.books, cnt={}, byBook={}, sch={}, slots=0, skip=0;
+    var BK=DATA.books, cnt={}, byBook={}, sch={}, slots=0, skip=0, schItems={};
     var by1={}, by2={}, n1=0, n2=0;
     Object.keys(BK).forEach(function(nm){
       Object.keys(BK[nm]).forEach(function(gr){
@@ -1279,6 +1323,7 @@ var STATS=(function(){
           }
           if(!semHit(sv)){ if(F.sem!=='전체' && !sv) skip++; return; }
           slots++; sch[nm]=1;
+          (schItems[nm]=schItems[nm]||[]).push([gr, it[0], b||'', sv]);
           if(!real) return;
           cnt[b]=(cnt[b]||0)+1;
           (byBook[b]=byBook[b]||[]).push([nm,gr,it[0],sv]);
@@ -1306,6 +1351,27 @@ var STATS=(function(){
       }
       h+=twoSem('1학기에 많이 쓰는 것 ('+n1+'칸)', top5(by1),
                 '2학기에 많이 쓰는 것 ('+n2+'칸)', top5(by2));
+    }
+    /* ★ 올라온 학교는 전부 보인다 — 「많이 쓰는 것」만으로는 우리 학교를 못 찾는다 (김병진T 260819) */
+    var names=Object.keys(schItems).sort();
+    if(names.length){
+      var trs='';
+      names.forEach(function(nm){
+        var its=schItems[nm].slice().sort(function(a,b2){
+          return a[0]===b2[0] ? (a[1]<b2[1]?-1:1) : (a[0]<b2[0]?-1:1); });
+        its.forEach(function(x,i){
+          trs+='<tr>'+(i===0
+              ? '<td rowspan="'+its.length+'" class="sn">'+esc(nm)+'</td>'
+              : '')
+            +'<td>'+esc(x[0])+'학년</td><td>'+esc(x[1])+'</td>'
+            +'<td>'+(x[2]&&x[2]!=='부교재 없음' ? '<b>'+esc(x[2])+'</b>'
+                    : (x[2]==='부교재 없음' ? '<span class="tag g">안 씁니다</span>' : '<span class="tag g">아직 모름</span>'))
+            +(x[3]?' <span class="tag t">'+esc(x[3]==='12'?'1·2':x[3])+'학기</span>':'')+'</td></tr>';
+        });
+      });
+      h+=card('학교마다 무엇을 쓰나 · '+esc(F.dept)+(F.sem==='전체'?'':' · '+esc(F.sem)),
+        '자료가 올라온 <b>'+names.length+'개교 전부</b>입니다. 학교 이름으로 찾으실 때 쓰십시오.',
+        '<table class="bkall"><tr><th>학교</th><th>학년</th><th>과목</th><th>부교재</th></tr>'+trs+'</table>');
     }
     var top=rows[0];
     if(top){
@@ -1536,15 +1602,20 @@ var STATS=(function(){
     /* 되돌려진 것과 되돌리기 쪽지는 「모인 자료」가 아니다 */
     var log=all.filter(function(x){ return x.kind!=='fav' && x.kind!=='undo' && !x._dead; });
     var favN=all.filter(function(x){ return x.kind==='fav'; }).length;
-    var cnt={}, kinds={}, anonN=0;
+    /* ★ 운영자 화면에서는 같은 분을 두 줄로 나누지 않는다 (260819)
+       전에는 「이름 안 밝힘」을 고른 건과 아닌 건이 갈려 ★김병진이 두 줄로★ 나왔다.
+       운영자에게는 어차피 실명이 보이므로 한 사람은 한 줄이어야 센 것이 맞다. */
+    var cnt={}, kinds={}, anonN=0, anonBy={};
     log.forEach(function(x){
       var anon=(x.show===false);
       if(anon) anonN++;
-      var key = (anon && !isAdm) ? '익명' : (x.name+'|'+(x.org||'')+'|'+(anon?'1':''));
+      var key = isAdm ? (x.name+'|'+(x.org||''))
+                      : (anon ? '익명' : (x.name+'|'+(x.org||'')));
+      if(anon) anonBy[key]=1;
       cnt[key]=(cnt[key]||0)+1;
       kinds[x.kind]=(kinds[x.kind]||0)+1;
     });
-    var rows=Object.keys(cnt).map(function(k){return [k,cnt[k]];}).sort(function(a,b){return b[1]-a[1];});
+    var rows=Object.keys(cnt).map(function(k){return [k,cnt[k],!!anonBy[k]];}).sort(function(a,b){return b[1]-a[1];});
     var KN={book:'과목·부교재',subj:'배우는 과목',rng:'시험범위',exam:'시험일정',
             score:'등급컷·평균',plan:'시험 시간표',fav:'즐겨찾기'};
     var h='<div class="hero">'
@@ -1559,12 +1630,44 @@ var STATS=(function(){
         ? '<table><tr><th class="rk"></th><th>선생님</th><th>학원</th><th style="text-align:right">채운 칸</th></tr>'
           + rows.slice(0,30).map(function(r,i){ var q=r[0].split('|');
               return '<tr><td class="rk">'+(i+1)+'</td><td>'+esc(q[0])
-              +(q[2]==='1'?' <span class="tag g">이름 안 밝힘</span>':'')+'</td>'
+              +(r[2]?' <span class="tag g">이름 안 밝힘</span>':'')+'</td>'
               +'<td>'+esc(q[1]||'—')+'</td><td class="n">'+r[1]+'</td></tr>'; }).join('')+'</table>'
           + (favN?'<div class="note">즐겨찾기가 저절로 올라간 '+favN+'건은 세지 않았습니다.</div>':'')
         : '<div class="empty2">아직 없습니다.</div>');
     var kr=Object.keys(kinds).map(function(k){return [KN[k]||k,kinds[k]];}).sort(function(a,b){return b[1]-a[1];});
     if(kr.length) h+=card('어떤 자료가 모였나','', bars(kr,' 건',1));
+
+    /* ★ 무엇을 고치셨나 — 운영자에게만 보인다 (김병진T 260819)
+       숫자만으로는 「누가 무엇을 넣었는지」를 알 수 없어 확인이 안 된다.
+       되돌려진 것과 되돌리기 쪽지까지 다 보여 준다 — 운영자는 전부를 봐야 한다. */
+    if(isAdm){
+      var det=all.filter(function(x){ return x.kind!=='fav'; })
+                 .slice().sort(function(a,b){ return (a._at||'')<(b._at||'')?1:-1; });
+      var who=['전체']; det.forEach(function(x){ if(who.indexOf(x.name)<0 && x.name) who.push(x.name); });
+      var sel=det.filter(function(x){ return F.who==='전체' || x.name===F.who; });
+      var chips='<div class="fil"><span class="lb">누가</span>'
+        + who.map(function(n){ return '<button class="chip wchip'+(F.who===n?' on':'')+'" data-w="'+esc(n)+'">'
+            +esc(n)+'</button>'; }).join('')+'</div>';
+      var body2 = sel.length
+        ? '<table class="whot"><tr><th>언제</th><th>누가</th><th>학교</th><th>무엇을</th></tr>'
+          + sel.slice(0,300).map(function(x){
+              var off=(x._dead||x.kind==='undo');
+              return '<tr'+(off?' class="off"':'')+'><td class="dt">'+esc((x._at||'').slice(0,10))
+                +'<div class="hint" style="margin:0">'+esc((x._at||'').slice(11,16))+'</div></td>'
+                +'<td>'+esc(x.name||'')+(x.org?'<div class="hint" style="margin:0">'+esc(x.org)+'</div>':'')
+                +(x.show===false?'<span class="tag g">이름 안 밝힘</span>':'')+'</td>'
+                +'<td>'+esc(x.school||'')+'</td>'
+                +'<td class="wl"><b>'+esc(KN[x.kind]||x.kind)+'</b> '+esc(whatOf(x))
+                +(x.note?'<div class="hint" style="margin:2px 0 0">근거 · '+esc(x.note)+'</div>':'')
+                +(x._dead?'<div class="hint" style="margin:2px 0 0"><b>되돌려졌습니다</b></div>':'')
+                +'</td></tr>'; }).join('')
+          + (sel.length>300?'<tr><td colspan="4" class="more">… 그 밖 '+(sel.length-300)+'건</td></tr>':'')
+          +'</table>'
+        : '<div class="empty2">아직 없습니다.</div>';
+      h+=card('무엇을 고치셨나 <span class="tag g">운영자만</span>',
+        '<b>이 표는 김병진T에게만 보입니다.</b> 되돌려진 것과 되돌리기 기록까지 모두 나옵니다 — 회색 줄이 그것입니다.',
+        chips+body2);
+    }
     // 빈 학교
     var empty=[];
     DATA.schools.forEach(function(s){
@@ -2887,7 +2990,8 @@ var HELP=(function(){
     +'<h3>9 · 통계 모아보기</h3>'
     +'<p class="ht"><b>「통계」</b> 에는 다섯 가지가 있습니다 — 부교재 · 교과서 · 등급컷·평균 · 시험일정 · 참여 현황.<br>'
     +'부교재와 교과서는 <b>1학기·2학기로 나눠</b> 보실 수 있습니다.<br>'
-    +'등급컷 순위는 <b>다섯 학교 이상 모여야</b> 나옵니다. 몇 곳으로 낸 1등은 1등이 아니라서 그렇게 해 두었습니다.</p>'
+    +'등급컷 순위는 <b>다섯 학교 이상 모여야</b> 나옵니다. 몇 곳으로 낸 1등은 1등이 아니라서 그렇게 해 두었습니다.<br>'
+    +'부교재에는 <b>「학교마다 무엇을 쓰나」</b> 가 있습니다 — 많이 쓰는 것만이 아니라 <b>자료가 올라온 학교를 전부</b> 학교 이름 순으로 봅니다.</p>'
     +'<h3>10 · 인쇄하고 엑셀로 받기</h3>'
     +'<p class="ht">오른쪽 위 <b>「인쇄 · 내보내기」</b> 를 누릅니다. <b>학원 이름</b>을 넣으면 인쇄물 맨 위에 찍히고, 한 번 넣으면 기억합니다.<br>'
     +'<b>PDF</b> — 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 파일로 남습니다. 휴대폰에서도 됩니다 (아이폰은 공유에서 「PDF로 저장」, 안드로이드는 프린터 목록에서 「PDF로 저장」).<br>'
