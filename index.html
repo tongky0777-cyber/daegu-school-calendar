@@ -425,7 +425,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260819-1519';</script>
+<script>var BUILDSTAMP='260819-1536';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -558,9 +558,23 @@ var _DEPT_OF = (function(){
   });
   return m;
 })();
+/* ★ 선생님들이 손으로 적으시는 줄임말 — 교과를 알아보게 한다 (260819)
+   「확통」을 적으셨는데 목록에 없어 ★화면에서 통째로 사라지던★ 일이 있었다.
+   보이는 글자는 그대로 두고, ★어느 교과인지 가릴 때만★ 쓴다. */
+var DEPT_PAT = [
+  [/^(수학|수I|수Ⅰ|수II|수Ⅱ|수1|수2|공수|공통수학|대수|미적|확통|확률|기하|경제 ?수학|인공지능 ?수학|수과탐|수학과제)/, '수학'],
+  [/^(국어|공국|공통국어|문학|독서|화법|화작|언매|언어와|매체|주제 ?탐구|고전)/, '국어'],
+  [/^(영어|공영|공통영어|영독|영작|영미|실용 ?영어|실생활|진로 ?영어)/, '영어'],
+  [/^(사회|통사|통합사회|한국사|한지|세지|세계사|세계시민|동아시아|동사|생윤|윤사|윤리|정치|정법|법과|경제|사문|사회와|사회·문화|현대사회|인문학|여행지리)/, '사회'],
+  [/^(과학|통과|통합과학|과탐|과학탐구|물리|물1|물2|물Ⅰ|물Ⅱ|화학|화1|화2|화Ⅰ|화Ⅱ|생명|생1|생2|생Ⅰ|생Ⅱ|지구|지1|지2|지Ⅰ|지Ⅱ|역학|전자기|물질과|화학 ?반응|세포|생물의|지구시스템|행성|과학사|생활과 ?과학|융합과학)/, '과학']
+];
 function deptOf(subject){
-  if(_DEPT_OF[subject]) return _DEPT_OF[subject];
-  for(var i=0;i<DEPTS.length;i++){ if(subject.indexOf(DEPTS[i])===0) return DEPTS[i]; }
+  var t=String(subject==null?'':subject).trim();
+  if(_DEPT_OF[t]) return _DEPT_OF[t];
+  var flat=t.replace(/\s/g,'');
+  if(_DEPT_OF[flat]) return _DEPT_OF[flat];
+  for(var i=0;i<DEPTS.length;i++){ if(t.indexOf(DEPTS[i])===0) return DEPTS[i]; }
+  for(var j=0;j<DEPT_PAT.length;j++){ if(DEPT_PAT[j][0].test(flat)) return DEPT_PAT[j][1]; }
   return '기타';
 }
 function subjectsFor(lvl, dept){
@@ -3700,20 +3714,30 @@ function open(key){
         h+='<div class="notice">이 학교 '+esc(DEP.join(' · '))+' 과목이 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
       }
       // 시험범위
-      var rs=[];
-      DEP.forEach(function(d){
+      /* ★ 어느 교과에도 안 걸리는 과목이 있으면 「그 밖」 으로 낸다.
+         전에는 filter 에서 빠져 ★화면에서 통째로 사라졌다★ (「확통」 사례 260819).
+         선생님이 넣으신 것은 무슨 일이 있어도 눈에 보여야 한다. */
+      function rngRows(pick){
         var rows='';
         if(rall) ['1','2','3'].forEach(function(gr){
           var byEx=rall[gr]; if(!byEx) return;
           ['0','1','2','3'].forEach(function(ei){
-            var rr=(byEx[ei]||[]).filter(function(x){return deptOf(x[0])===d;});
+            var rr=(byEx[ei]||[]).filter(pick);
             if(!rr.length) return;
             rows+='<tr><td>'+gr+'학년<div class="hint" style="margin:2px 0 0">'+names[+ei]+'</div></td><td>'
               +rr.map(function(x){ return '<b>'+esc(x[0])+'</b> '+esc(x[1]); }).join('<br>')+'</td></tr>';
           });
         });
+        return rows;
+      }
+      var rs=[];
+      DEP.forEach(function(d){
+        var rows=rngRows(function(x){ return deptOf(x[0])===d; });
         if(rows) rs.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
       });
+      var etcRows=rngRows(function(x){ return DEPTS.indexOf(deptOf(x[0]))<0; });
+      if(etcRows) rs.push('<div class="dsec">그 밖</div><table class="bkrow">'+etcRows+'</table>'
+        +'<div class="hint">교과를 알아보지 못한 과목입니다. 이름을 아주 짧게 적으셨거나 새로 생긴 과목일 수 있습니다 — 내용은 그대로 살아 있습니다.</div>');
       h+='<h3>시험범위</h3>';
       h += rs.length ? rs.join('')
         : '<div class="notice">아직 등록되지 않았습니다. 가정통신문이나 학교 공지로 아시는 범위가 있으면 아래에서 알려 주십시오.</div>';
@@ -3724,10 +3748,10 @@ function open(key){
     // 부교재
     if(b){
       var bs=[];
-      DEP.forEach(function(d){
+      function bkRows(pick){
         var rows='';
         Object.keys(b).sort().forEach(function(gr){
-          var its=b[gr].items.filter(function(x){return deptOf(x[0])===d;}).sort(function(p,q){
+          var its=b[gr].items.filter(pick).sort(function(p,q){
             var sp=semesterOf(g.name,gr,p[0],p[2])||'9', sq=semesterOf(g.name,gr,q[0],q[2])||'9';
             return sp<sq?-1:sp>sq?1:0; });
           if(!its.length) return;
@@ -3735,8 +3759,14 @@ function open(key){
             return semTag(semesterOf(g.name,gr,x[0],x[2]))+'<b>'+esc(x[0])+'</b> · '+esc(x[1]);}).join('<br>')
             +(b[gr].note?'<div class="bnote">'+esc(b[gr].note)+'</div>':'')+'</td></tr>';
         });
+        return rows;
+      }
+      DEP.forEach(function(d){
+        var rows=bkRows(function(x){ return deptOf(x[0])===d; });
         if(rows) bs.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
       });
+      var bEtc=bkRows(function(x){ return DEPTS.indexOf(deptOf(x[0]))<0; });   // 교과를 못 가린 것도 보이게
+      if(bEtc) bs.push('<div class="dsec">그 밖</div><table class="bkrow">'+bEtc+'</table>');
       if(bs.length){
         h+='<h3>학교 부교재</h3>'+bs.join('')
           +'<div class="hint">부교재는 학원 자체 조사분입니다. 학사일정과 출처가 다릅니다.<br>'
