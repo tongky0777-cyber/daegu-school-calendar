@@ -425,7 +425,7 @@ table.prt thead{display:table-header-group}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260819-1454';</script>
+<script>var BUILDSTAMP='260819-1519';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -2141,6 +2141,21 @@ var SUGGEST=(function(){
     return {fixed:false, list:[]};
   }
 
+  /* 이 학교에 이미 들어 있는 시험범위가 어느 학년 어느 시험인가
+     ★ 「고쳐 주기」를 누르면 ★그 자리부터★ 열어야 한다.
+       1학기 중간(빈 칸)이 먼저 열리면 「등록된 게 안 보인다」로 읽힌다. */
+  function rngHas(name){
+    var r=(DATA.ranges||{})[name]||{}, out=[];
+    Object.keys(r).forEach(function(gr){
+      Object.keys(r[gr]||{}).forEach(function(ex){
+        var n=(r[gr][ex]||[]).length;
+        if(n) out.push({g:String(gr), e:String(ex), n:n});
+      });
+    });
+    out.sort(function(a,b){ return a.e===b.e ? (a.g<b.g?-1:1) : (+b.e)-(+a.e); });  // 늦은 시험 먼저
+    return out;
+  }
+
   /* 오늘이 몇 학기인가 — 그 학교 2학기 개학일로 본다 */
   function semNow(g){
     var se=null;
@@ -2168,6 +2183,7 @@ var SUGGEST=(function(){
 
   function open(g, tab){
     var p=document.getElementById('spanel'), kind=tab||'book';
+    var RGPICK=null;                 // 시험범위 「이미 들어 있는 것」 딱지로 고른 자리
     if(typeof selDepts!=='undefined' && selDepts.length===1) curD=selDepts[0];
     var grades=g.rows.map(function(r){return r.grade||'-';});
     function form(){
@@ -2218,11 +2234,26 @@ var SUGGEST=(function(){
           +'<div class="hint" id="sjnow"></div>'
           +'<div class="hint">1학기와 2학기를 <b>한 번에</b> 알려 주실 때 쓰는 자리입니다. 한 학기만 아시면 앞의 「과목 · 부교재」에서 그 학기만 고르셔도 됩니다.</div>';
       }else if(kind==='rng'){
-        h+='<label class="fl">어느 시험입니까</label><select id="rex" style="width:100%;border-radius:9px;padding:10px 12px;font-size:14px">'
-          + EXNAME.map(function(s2,i){return '<option value="'+i+'">'+s2+'</option>';}).join('')+'</select>'
+        var got=rngHas(g.name);
+        var sm3=semNow(g);
+        var dft=got.filter(function(x){ return sm3==='2' ? +x.e>=2 : +x.e<2; })[0] || got[0]
+              || {g:'2', e:(sm3==='2'?'2':'0')};
+        if(RGPICK){ dft=RGPICK; RGPICK=null; }
+        h+=(got.length
+            ? '<label class="fl">이미 들어 있는 것 <span class="hint" style="font-weight:600;margin:0">— 누르면 그 자리가 열립니다</span></label>'
+              +'<div class="checks" style="gap:6px">'
+              + got.map(function(x){
+                  var on=(x.g===dft.g && x.e===dft.e);
+                  return '<button type="button" class="btn'+(on?'':' ghost')+' rgo" data-g="'+x.g+'" data-e="'+x.e+'" '
+                    +'style="padding:7px 11px;font-size:12.5px">'+x.g+'학년 '+EXNAME[+x.e]+' <b>'+x.n+'과목</b></button>';
+                }).join('')
+              +'</div>'
+            : '')
+          +'<label class="fl">어느 시험입니까</label><select id="rex" style="width:100%;border-radius:9px;padding:10px 12px;font-size:14px">'
+          + EXNAME.map(function(s2,i){return '<option value="'+i+'"'+(String(i)===dft.e?' selected':'')+'>'+s2+'</option>';}).join('')+'</select>'
           +'<label class="fl">학년</label><div class="checks">'
-          + (g.lvl==='고'?['1','2','3']:['1','2','3']).map(function(x){
-              return '<label><input type="radio" name="sgr4" value="'+x+'"'+(x==='2'?' checked':'')+'> '+x+'학년</label>';}).join('')
+          + ['1','2','3'].map(function(x){
+              return '<label><input type="radio" name="sgr4" value="'+x+'"'+(x===dft.g?' checked':'')+'> '+x+'학년</label>';}).join('')
           +'</div>'
           +'<label class="fl">과목과 범위</label>'
           +'<textarea id="rtxt" placeholder="예)\n대수 : 수열 전체 + 등차수열의 합\n미적분1 : 극한 ~ 미분계수" '
@@ -2266,8 +2297,9 @@ var SUGGEST=(function(){
           +'<div class="hint">학교가 공식으로 낸 값을 넣어 주십시오. '
           +'<b>재원생 몇 명으로 낸 값이 아니라</b> 학교 평균·등급컷입니다. 모르는 칸은 비워 두셔도 됩니다.</div>';
       }else{
+        var sm4=semNow(g), dex=(sm4==='2'?2:0);
         h+='<label class="fl">어느 시험입니까</label><select id="sex" style="width:100%;border-radius:9px;padding:10px 12px;font-size:14px">'
-          + EXNAME.map(function(s,i){return '<option value="'+i+'">'+s+'</option>';}).join('')+'</select>'
+          + EXNAME.map(function(s,i){return '<option value="'+i+'"'+(i===dex?' selected':'')+'>'+s+'</option>';}).join('')+'</select>'
           + (g.rows.length>1?'<label class="fl">학년</label><div class="checks">'
               +g.rows.map(function(r,i){return '<label><input type="radio" name="sgr2" value="'+i+'"'+(i===0?' checked':'')+'> '+esc(r.grade)+'학년</label>';}).join('')
               +'</div>':'')
@@ -2322,7 +2354,11 @@ var SUGGEST=(function(){
       document.getElementById('ssend').onclick=send;
       if(kind==='score') paintScore();
       if(kind==='plan') paintPlan();
-      if(kind==='rng') paintRng();
+      if(kind==='rng'){
+        paintRng();
+        p.querySelectorAll('.rgo').forEach(function(b2){
+          b2.onclick=function(){ RGPICK={g:b2.dataset.g, e:b2.dataset.e}; draw(); }; });
+      }
       if(kind==='subj') paintSubj();
       if(kind==='exam') paintExam();
       var box=document.getElementById('subbox');
