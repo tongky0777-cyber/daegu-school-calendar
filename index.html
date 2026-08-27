@@ -423,6 +423,11 @@ table.tt td.ttd .ttw{color:#7d908b;font-weight:600;margin-left:2px}
 table.tt td.ttn{color:#9aa8a4;font-weight:600}
 .tth{font-size:11.5px;color:#7d908b;margin-top:8px;line-height:1.5}
 @media print{ button.ttb{display:none} .ttwrap{overflow:visible} }
+
+/* 카드의 학년별 다음 일정 (260827 더함) */
+.cnext .cgr{display:inline-block;margin-right:5px;padding:1px 7px;border-radius:999px;
+  background:#eef4f3;color:#4a5c58;font-size:11px;font-weight:800;vertical-align:middle}
+.cnext + .cnext{margin-top:3px}
 </style></head>
 <body>
 <header><div class="hin">
@@ -3432,7 +3437,7 @@ S.forEach(function(s){ var k=s.lvl+'|'+s.name;
   (GROUP[k]=GROUP[k]||{key:k,lvl:s.lvl,name:s.name,off:s.off,est:s.est,typ:s.typ,ofc:s.ofc||'',rows:[]}).rows.push(s); });
 var LIST=Object.keys(GROUP).map(function(k){return GROUP[k];});
 LIST.sort(function(a,b){return a.name.localeCompare(b.name,'ko');});
-var BYKEY={}; LIST.forEach(function(g){ BYKEY[g.key]=g; g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); });
+var BYKEY={}; LIST.forEach(function(g){ BYKEY[g.key]=g; g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); g.nexts=nextByRow(g); });
 
 
 /* ═══ 교시별 시험 시간표 (260827 더함 — 자료가 있는 학교만 뜬다) ═══ */
@@ -3472,7 +3477,7 @@ function ttHtml(school, gradeKey, exIdx){
 
 function events(r){ var e=[];
   if(r.ex) ['1학기 중간','1학기 기말','2학기 중간','2학기 기말'].forEach(function(n,i){
-    if(r.ex[i]&&r.ex[i][0]) e.push({n:n+'고사',s:r.ex[i][0]}); });
+    if(r.ex[i]&&r.ex[i][0]) e.push({n:n+'고사',s:r.ex[i][0],e:r.ex[i][1]||r.ex[i][0]}); });
   if(r.ss) e.push({n:'여름방학식',s:r.ss});
   if(r.se) e.push({n:'2학기 개학',s:r.se});
   if(r.ws_) e.push({n:'겨울방학식',s:r.ws_});
@@ -3481,6 +3486,30 @@ function nextEvent(g){ var a=[];
   g.rows.forEach(function(r){ events(r).forEach(function(e){a.push(e);}); });
   a=a.filter(function(e){return dt(e.s)>=TODAY;}).sort(function(x,y){return dt(x.s)-dt(y.s);});
   return a[0]||null; }
+/* 학년마다 「다음 일정」을 따로 뽑는다 (260827 더함).
+   ★까닭★ 한 학교에 학년 행이 둘 이상인데 카드가 「가장 이른 하나」만 보여 주면,
+   다른 학년 것을 고쳤을 때 카드가 안 움직여 「반영이 안 됐다」로 읽힌다. */
+function nextByRow(g){ var out=[];
+  (g.rows||[]).forEach(function(r){
+    var a=events(r).filter(function(e){return dt(e.s)>=TODAY;})
+                   .sort(function(x,y){return dt(x.s)-dt(y.s);});
+    if(a[0]) out.push({grade:(r.grade||''), n:a[0].n, s:a[0].s, e:a[0].e||a[0].s});
+  });
+  return out; }
+function cnextHtml(g){
+  var ns=g.nexts||[];
+  if(!ns.length) return '<div class="cnext none">남은 일정 없음</div>';
+  function span(x){ var t=fmt(x.s);
+    if(x.e && x.e!==x.s){ var a=String(x.s).split('-'), p=String(x.e).split('-');
+      t+='~'+(a[1]===p[1] ? (+p[2])+'일' : (+p[1])+'월 '+(+p[2])+'일'); }
+    return t+dday(x.s); }
+  var same=ns.every(function(x){ return x.s===ns[0].s && x.e===ns[0].e && x.n===ns[0].n; });
+  function nm(x){ return esc(String(x.n).replace('고사','')); }
+  if(same) return '<div class="cnext">다음 일정 · <b>'+nm(ns[0])+'</b> '+span(ns[0])+'</div>';
+  return ns.map(function(x){
+    return '<div class="cnext"><span class="cgr">'+esc(x.grade||'전체')+'학년</span>'
+      +'<b>'+nm(x)+'</b> '+span(x)+'</div>'; }).join('');
+}
 var SUBJ=DATA.subjects||{}, RANGE=DATA.ranges||{}, TB=DATA.textbook||{};
 function pubOf(name,grade,subject){ var t=TB[name]; return (t&&t[subject])||null; }
 function subjectsOf(name,grade,dept){
@@ -3799,8 +3828,7 @@ function render(){
         +(g.off?'<span class="tag">'+esc(g.off)+'</span>':'')
         +(g.typ?'<span class="tag">'+esc(g.typ)+'</span>':'')
         +(g.hasBooks?'<span class="tag bk">부교재</span>':'')+'</div>'
-      +(g.next?'<div class="cnext">다음 일정 · <b>'+esc(g.next.n)+'</b> '+fmt(g.next.s)+dday(g.next.s)+'</div>'
-              :'<div class="cnext none">남은 일정 없음</div>')
+      +cnextHtml(g)
       +'</div>'; }).join('');
   if(out.length>400) grid.insertAdjacentHTML('beforeend','<div class="empty">앞의 400개만 보입니다. 이름을 더 넣어 좁혀 주십시오.</div>');
 }
@@ -4352,7 +4380,7 @@ window.DGAPI={ fav:favList, list:function(){ return LIST.slice(); },
                byKey:function(k){ return BYKEY[k]||null; }, open:open };
 window.DGWATCH={ start:watchStart, once:function(){ watchOnce(false); } };
 window.DGCAL={ refresh:function(){
-  LIST.forEach(function(g){ g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); });
+  LIST.forEach(function(g){ g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); g.nexts=nextByRow(g); });
   render();
   if(OPENKEY && document.getElementById('sheet').classList.contains('on')) open(OPENKEY);
 }, whoPaint:whoPaint };
