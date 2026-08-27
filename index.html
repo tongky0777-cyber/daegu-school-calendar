@@ -404,6 +404,25 @@ table.prt thead{display:table-header-group}
   .wrow .todo button{padding:5px 8px;font-size:11.5px}
   .lab{font-size:10.5px;padding:2px 6px}
 }
+
+/* 교시별 시험 시간표 (260827 더함) */
+button.ttb{margin-left:8px;padding:2px 9px;font-size:11.5px;font-weight:700;border:1px solid #cfdcd8;
+  background:#fff;color:#0f7766;border-radius:999px;cursor:pointer;vertical-align:middle}
+button.ttb:hover{background:#eef7f5}
+button.ttb.on{background:#0f7766;color:#fff;border-color:#0f7766}
+.ttbox{margin:11px 0 2px}
+.ttg{font-size:13px;font-weight:800;color:#16211f;margin:10px 0 5px}
+.ttg .ttq{font-size:11.5px;font-weight:600;color:#7d908b;margin-left:5px}
+.ttwrap{overflow-x:auto}
+table.tt{width:100%;border-collapse:collapse;font-size:12.5px;min-width:430px}
+table.tt th,table.tt td{border:1px solid #e2eae8;padding:6px 7px;text-align:center;vertical-align:middle}
+table.tt thead th{background:#f3f8f7;color:#2b4642;font-weight:800;line-height:1.25}
+table.tt th .ttt{display:block;font-size:10px;font-weight:600;color:#7d908b;margin-top:1px}
+table.tt td.ttd,table.tt th.ttd{background:#f8fbfa;font-weight:800;color:#2b4642;white-space:nowrap;width:98px}
+table.tt td.ttd .ttw{color:#7d908b;font-weight:600;margin-left:2px}
+table.tt td.ttn{color:#9aa8a4;font-weight:600}
+.tth{font-size:11.5px;color:#7d908b;margin-top:8px;line-height:1.5}
+@media print{ button.ttb{display:none} .ttwrap{overflow:visible} }
 </style></head>
 <body>
 <header><div class="hin">
@@ -3415,6 +3434,42 @@ var LIST=Object.keys(GROUP).map(function(k){return GROUP[k];});
 LIST.sort(function(a,b){return a.name.localeCompare(b.name,'ko');});
 var BYKEY={}; LIST.forEach(function(g){ BYKEY[g.key]=g; g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); });
 
+
+/* ═══ 교시별 시험 시간표 (260827 더함 — 자료가 있는 학교만 뜬다) ═══ */
+var TT = {"대구여자고등학교": {"1~2": {"2": {"src": "학교 시간표 (2026학년도 2학기 중간시험)", "sets": [{"g": "1학년", "note": "공통", "days": [["2026-09-28", ["정규수업"]], ["2026-09-29", ["공통수학2", "통합사회2"]], ["2026-09-30", ["공통영어2", "통합과학2"]], ["2026-10-01", ["공통국어2", "한국사2"]]]}, {"g": "2학년", "note": "학생 선택", "days": [["2026-09-28", ["영어Ⅱ", "세포와 물질대사", "윤리와 사상"]], ["2026-09-29", ["화법과 언어", "물질과 에너지", "세계 문화와 영어", "동아시아 역사 기행"]], ["2026-09-30", ["미적분Ⅱ", "주제 탐구 독서", "법과 사회", "정치 / 지구시스템과학"]], ["2026-10-01", ["확률과 통계", "역학과 에너지", "세계시민과 지리"]]]}]}}, "3": {"3": {"src": "학교 시간표 (2026학년도 2학기 정기시험) — 3학년은 2학기 중간이 없고 이 시험이 정기시험입니다", "sets": [{"g": "3학년", "note": "학생 선택", "days": [["2026-09-28", ["정규수업"]], ["2026-09-29", ["심화국어", "세계사"]], ["2026-09-30", ["심화 수학Ⅰ / 심화 수학Ⅱ", "사회·문화"]], ["2026-10-01", ["심화영어독해Ⅱ", "생활과 윤리"]]]}]}}}};
+var TT_TIME = [["1교시", "08:35", "08:40~09:30"], ["2교시", "09:45", "09:50~10:40"], ["3교시", "10:55", "11:00~11:50"], ["4교시", "12:05", "12:10~13:00"]];
+function ttGet(school, gradeKey, exIdx){
+  var a=TT[school]; if(!a) return null;
+  var b=a[String(gradeKey)]; if(!b) return null;
+  return b[String(exIdx)]||null;          /* exIdx 0=1중간 1=1기말 2=2중간 3=2기말 */
+}
+function ttEsc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+function ttWd(d){ var w=['일','월','화','수','목','금','토'],p=String(d).split('-');
+  return p.length<3?'':w[new Date(+p[0],+p[1]-1,+p[2]).getDay()]; }
+function ttMd(d){ var p=String(d).split('-'); return p.length<3?d:(+p[1])+'월 '+(+p[2])+'일'; }
+function ttOne(set){
+  var maxp=1; set.days.forEach(function(d){ if(d[1].length>maxp) maxp=d[1].length; });
+  var h='<div class="ttg">'+ttEsc(set.g)+(set.note?' <span class="ttq">'+ttEsc(set.note)+'</span>':'')+'</div>';
+  h+='<div class="ttwrap"><table class="tt"><thead><tr><th class="ttd">날짜</th>';
+  for(var i=0;i<maxp;i++){ var t=TT_TIME[i]||['','',''];
+    h+='<th>'+t[0]+'<span class="ttt">'+t[2]+'</span></th>'; }
+  h+='</tr></thead><tbody>';
+  set.days.forEach(function(d){
+    h+='<tr><td class="ttd">'+ttMd(d[0])+'<span class="ttw">('+ttWd(d[0])+')</span></td>';
+    for(var i=0;i<maxp;i++){ var v=d[1][i];
+      h+='<td'+(v==='정규수업'?' class="ttn"':'')+'>'+ttEsc(v)+'</td>'; }
+    h+='</tr>'; });
+  return h+'</tbody></table></div>';
+}
+function ttHtml(school, gradeKey, exIdx){
+  var t=ttGet(school,gradeKey,exIdx); if(!t) return '';
+  var h='<div class="ttbox">';
+  t.sets.forEach(function(st){ h+=ttOne(st); });
+  h+='<div class="tth">예비령 '+TT_TIME[0][1]+' · 한 교시 50분 · 빈칸은 그 교시에 시험이 없다는 뜻입니다.'
+   +(t.src?'<br>'+ttEsc(t.src)+' 를 그대로 옮긴 것입니다.':'')+'</div></div>';
+  return h;
+}
+
 function events(r){ var e=[];
   if(r.ex) ['1학기 중간','1학기 기말','2학기 중간','2학기 기말'].forEach(function(n,i){
     if(r.ex[i]&&r.ex[i][0]) e.push({n:n+'고사',s:r.ex[i][0]}); });
@@ -3771,8 +3826,11 @@ function open(key){
       var names=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'],any=false,t='<table>';
       names.forEach(function(n,i){ var a=r.ex&&r.ex[i]?r.ex[i][0]:null,b=r.ex&&r.ex[i]?r.ex[i][1]:null;
         if(a) any=true;
-        t+='<tr><td>'+n+'</td><td>'+(a?range(a,b)+dday(a):'<span class="none">미실시 또는 미기재</span>')+'</td></tr>'; });
+        var hasTT=(typeof ttGet==='function'&&a)?!!ttGet(g.name,(r.grade||''),i):false;
+        t+='<tr><td>'+n+'</td><td>'+(a?range(a,b)+dday(a):'<span class="none">미실시 또는 미기재</span>')
+          +(hasTT?' <button class="ttb" data-tt="'+i+'" data-gr="'+(r.grade||'')+'">교시별 시간표</button>':'')+'</td></tr>'; });
       h+=t+'</table>';
+      h+='<div id="ttslot"></div>';
       if(!any) h+='<div class="notice" style="margin-top:9px">이 학교는 정기시험 일정이 기재되어 있지 않습니다.</div>';
     }
     // ── 교과별 자료 — 첫 화면에서 고른 교과만, 안 고르면 전 교과 ──
@@ -3917,6 +3975,17 @@ function open(key){
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
     bindLog(p, g.name);
+    /* 교시별 시간표 여닫기 (260827 더함) */
+    Array.prototype.forEach.call(p.querySelectorAll('button.ttb'), function(bt){
+      bt.onclick=function(){
+        var box=document.getElementById('ttslot'); if(!box) return;
+        var ix=bt.dataset.tt, btns=p.querySelectorAll('button.ttb');
+        if(box.dataset.open===ix){ box.innerHTML=''; box.dataset.open='';
+          Array.prototype.forEach.call(btns,function(x){x.classList.remove('on');}); return; }
+        box.innerHTML=ttHtml(g.name,bt.dataset.gr||'',+ix); box.dataset.open=ix;
+        Array.prototype.forEach.call(btns,function(x){ x.classList.toggle('on',x.dataset.tt===ix); });
+      };
+    });
     var nb=document.getElementById('neisb');
     if(nb) nb.onclick=function(){
       var again = nb.dataset.done==='1';
