@@ -99,6 +99,16 @@ main{max-width:1080px;margin:0 auto;padding:14px 16px 60px}
 .gtab button{padding:6px 13px;font-size:13px;font-weight:700;border:1px solid var(--line);
   background:var(--surface);border-radius:999px;color:var(--ink2);cursor:pointer}
 .gtab button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+/* 카드 안 내용 탭 (260828 더함) — 시험 · 일정 · 시험범위 · 교재 */
+.stab{display:flex;gap:6px;margin:0 0 14px;flex-wrap:wrap}
+.stab button{flex:1 1 0;min-width:74px;padding:9px 6px;font-size:13px;font-weight:800;
+  border:1px solid var(--line);background:var(--surface);border-radius:10px;color:var(--ink2);
+  cursor:pointer;line-height:1.25}
+.stab button .n{display:block;font-size:10.5px;font-weight:700;color:var(--muted);margin-top:2px}
+.stab button.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.stab button.on .n{color:rgba(255,255,255,.82)}
+.stab button.off{opacity:.5}
+.stab button.off .n{color:var(--muted)}
 h3{margin:17px 0 8px;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.06em}
 h3:first-child{margin-top:0}
 table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -3837,19 +3847,23 @@ function render(){
 var curDept='수학';
 function open(key){
   var g=BYKEY[key], p=document.getElementById('panel'), gi=0;
+  var SEC='';          /* 260828 — 카드 안 내용 탭 (exam·cal·rng·book) */
   OPENKEY=key;
   function row(l,v){ return '<tr><td>'+l+'</td><td>'+(v?fmt(v)+dday(v):'<span class="none">-</span>')+'</td></tr>'; }
   function body(){
     var r=g.rows[gi], h='';
+    /* 260828 — 카드를 넷으로 나눈다. 세로로 길어 못 찾던 것을 탭으로 가른다.
+       S 에 나눠 담고 맨 끝에서 조립한다. h 는 학년 탭(맨 위)만 쓴다. */
+    var S={exam:'',cal:'',rng:'',book:''};
     var topbar='';
     if(g.rows.length>1) topbar+='<div class="gtab" style="margin:0">'+g.rows.map(function(rr,i){
       return '<button data-g="'+i+'" class="'+(i===gi?'on':'')+'">'+esc(rr.grade||'전체')+'학년</button>';}).join('')+'</div>';
     if(NEIS.on()) topbar+='<button class="btn ghost" id="neisb">NEIS 최신 일정</button>';
     if(topbar) h+='<div class="topbar">'+topbar+'</div>';
-    h+='<h3>방학 · 개학</h3><table>'+row('개학일(입학일)',r.open)+row('여름방학식',r.ss)+row('2학기 개학',r.se)
+    S.cal+='<h3>방학 · 개학</h3><table>'+row('개학일(입학일)',r.open)+row('여름방학식',r.ss)+row('2학기 개학',r.se)
       +row('겨울방학식',r.ws_)+row('학년말 개학',r.we)+row('종업식',r.fin)+row('졸업식',r.grad)+'</table>';
-    h+='<h3>정기시험</h3>';
-    if(g.lvl==='초'){ h+='<div class="notice">초등학교는 정기시험이 없습니다. 시험 일정이 비어 있는 것이 정상입니다.</div>'; }
+    S.exam+='<h3>정기시험</h3>';
+    if(g.lvl==='초'){ S.exam+='<div class="notice">초등학교는 정기시험이 없습니다. 시험 일정이 비어 있는 것이 정상입니다.</div>'; }
     else{
       var names=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'],any=false,t='<table>';
       names.forEach(function(n,i){ var a=r.ex&&r.ex[i]?r.ex[i][0]:null,b=r.ex&&r.ex[i]?r.ex[i][1]:null;
@@ -3857,9 +3871,9 @@ function open(key){
         var hasTT=(typeof ttGet==='function'&&a)?!!ttGet(g.name,(r.grade||''),i):false;
         t+='<tr><td>'+n+'</td><td>'+(a?range(a,b)+dday(a):'<span class="none">미실시 또는 미기재</span>')
           +(hasTT?' <button class="ttb" data-tt="'+i+'" data-gr="'+(r.grade||'')+'">교시별 시간표</button>':'')+'</td></tr>'; });
-      h+=t+'</table>';
-      h+='<div id="ttslot"></div>';
-      if(!any) h+='<div class="notice" style="margin-top:9px">이 학교는 정기시험 일정이 기재되어 있지 않습니다.</div>';
+      S.exam+=t+'</table>';
+      S.exam+='<div id="ttslot"></div>';
+      if(!any) S.exam+='<div class="notice" style="margin-top:9px">이 학교는 정기시험 일정이 기재되어 있지 않습니다.</div>';
     }
     // ── 교과별 자료 — 첫 화면에서 고른 교과만, 안 고르면 전 교과 ──
     var DEP = selDepts.length ? selDepts.slice() : DEPTS.slice();
@@ -3879,13 +3893,13 @@ function open(key){
           +mine.map(function(k){ return '<tr><td>'+esc(k)+'</td><td>'+esc(tb[k])+'</td></tr>'; }).join('')
           +'</table>');
       });
-      h+='<h3>교과서 출판사</h3>';
+      S.book+='<h3>교과서 출판사</h3>';
       if(secs.length){
-        h+=secs.join('')
+        S.book+=secs.join('')
           +'<div class="hint">괄호 안은 대표저자입니다. 출처 · 대구광역시교육청 교과서 목록 (고 2026.05.09 · 중 2026.07.03)'
           +(none.length?'<br>아직 없는 교과 — '+esc(none.join(' · ')):'')+'</div>';
       } else {
-        h+='<div class="notice">'+esc(DEP.join(' · '))+' 교과서가 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
+        S.book+='<div class="notice">'+esc(DEP.join(' · '))+' 교과서가 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
       }
     }
 
@@ -3909,15 +3923,21 @@ function open(key){
         if(rows) out.push(dh(d)+'<table class="bkrow">'+rows+'</table>');
         else noneS.push(d);
       });
-      h+='<h3>배우는 과목</h3>';
+      S.book+='<h3>배우는 과목</h3>';
       if(out.length){
-        h+=out.join('')
+        S.book+=out.join('')
           +'<div class="hint">회색 표는 <b>교과서 출판사</b>입니다. 1학년은 전국이 같아 자동으로 들어갑니다.'
           +' 2·3학년은 학교마다 달라 <b>선생님들이 알려 주시는 대로 채워집니다.</b>'
           +(noneS.length?'<br>아직 없는 교과 — '+esc(noneS.join(' · ')):'')+'</div>';
       } else {
-        h+='<div class="notice">이 학교 '+esc(DEP.join(' · '))+' 과목이 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
+        S.book+='<div class="notice">이 학교 '+esc(DEP.join(' · '))+' 과목이 아직 등록되지 않았습니다. 아시면 아래에서 알려 주십시오.</div>';
       }
+    }
+
+    /* ★★ 260828 고침 — 시험범위·시험 시간표가 `고` 안에 갇혀 있었다.
+       중학교도 시험범위를 넣을 수 있는데(고쳐주기 화면은 초만 막는다) 카드에는 안 나왔다.
+       넣으신 것이 고침 내역에만 보이고 본문에 없던 까닭이 이것이다. → 초가 아니면 그린다. */
+    if(g.lvl!=='초'){
       // 시험범위
       /* ★ 어느 교과에도 안 걸리는 과목이 있으면 「그 밖」 으로 낸다.
          전에는 filter 에서 빠져 ★화면에서 통째로 사라졌다★ (「확통」 사례 260819).
@@ -3943,11 +3963,11 @@ function open(key){
       var etcRows=rngRows(function(x){ return DEPTS.indexOf(deptOf(x[0]))<0; });
       if(etcRows) rs.push('<div class="dsec">그 밖</div><table class="bkrow">'+etcRows+'</table>'
         +'<div class="hint">교과를 알아보지 못한 과목입니다. 이름을 아주 짧게 적으셨거나 새로 생긴 과목일 수 있습니다 — 내용은 그대로 살아 있습니다.</div>');
-      h+='<h3>시험범위</h3>';
-      h += rs.length ? rs.join('')
+      S.rng+='<h3>시험범위</h3>';
+      S.rng += rs.length ? rs.join('')
         : '<div class="notice">아직 등록되지 않았습니다. 가정통신문이나 학교 공지로 아시는 범위가 있으면 아래에서 알려 주십시오.</div>';
-      h += planBox(g.name, g.rows[gi] && g.rows[gi].grade);
-      h += scoreBox(g.name);
+      S.exam += planBox(g.name, g.rows[gi] && g.rows[gi].grade);
+      if(g.lvl==='고') S.exam += scoreBox(g.name);
     }
 
     // 부교재
@@ -3973,15 +3993,37 @@ function open(key){
       var bEtc=bkRows(function(x){ return DEPTS.indexOf(deptOf(x[0]))<0; });   // 교과를 못 가린 것도 보이게
       if(bEtc) bs.push('<div class="dsec">그 밖</div><table class="bkrow">'+bEtc+'</table>');
       if(bs.length){
-        h+='<h3>학교 부교재</h3>'+bs.join('')
+        S.book+='<h3>학교 부교재</h3>'+bs.join('')
           +'<div class="hint">부교재는 학원 자체 조사분입니다. 학사일정과 출처가 다릅니다.<br>'
           +'<b>학기 표시가 없는 것</b>은 아직 어느 학기 것인지 확인되지 않은 것입니다.</div>';
       }
     }
-    h+='<h3>수업일수</h3><table><tr><td>1학기</td><td>'+(r.d1||'-')+'일</td></tr>'
+    S.cal+='<h3>수업일수</h3><table><tr><td>1학기</td><td>'+(r.d1||'-')+'일</td></tr>'
       +'<tr><td>2학기</td><td>'+(r.d2||'-')+'일</td></tr>'
       +'<tr><td>합계</td><td>'+(r.dt||'-')+'일</td></tr></table>';
-    return h; }
+
+    /* ── 탭 조립 (260828) ───────────────────────────────────
+       빈 칸은 흐리게 두되 ★없애지 않는다★ — 없어지면 「원래 없는 것」인지
+       「내가 못 찾는 것」인지 학생·학부모가 못 가린다. */
+    function has(x){ return /<table|<div class="(notice|hint)"|<tr/.test(x); }
+    function cnt(x,re){ var m=x.match(re); return m? m.length : 0; }
+    var TABS=[
+      ['exam','시험',   (function(){   /* 가장 가까운 시험까지 남은 날 — 「몇 개」보다 이 편이 쓸모 있다 */
+          var best=null;
+          (r.ex||[]).forEach(function(e){ if(!e||!e[0]) return;
+            var d=Math.ceil((new Date(e[0]+'T00:00:00')-new Date(new Date().toDateString()))/864e5);
+            if(d>=0 && (best===null||d<best)) best=d; });
+          return best===null? '' : (best===0? '오늘' : 'D-'+best); })()],
+      ['cal', '일정',   ''],
+      ['rng', '시험범위',(function(){ var n=cnt(S.rng,/<tr>/g); return n? n+'줄':'없음'; })()],
+      ['book','교재',   (function(){ var n=cnt(S.book,/<tr>/g); return n? n+'줄':'없음'; })()]
+    ];
+    if(!SEC || !S[SEC]) SEC = S.exam? 'exam' : 'cal';
+    var tb='<div class="stab">'+TABS.map(function(t){
+      var on=(t[0]===SEC), empty=!has(S[t[0]]);
+      return '<button data-s="'+t[0]+'" class="'+(on?'on':'')+(empty?' off':'')+'">'
+        +t[1]+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'; }).join('')+'</div>';
+    return h + tb + '<div class="sbody">' + (S[SEC]||'') + '</div>'; }
   function draw(){
     p.innerHTML='<div class="ph"><div><h2>'+esc(g.name)+'</h2>'
       +'<div class="ctag"><span class="tag lv">'+esc(g.lvl)+'</span>'
@@ -3999,6 +4041,8 @@ function open(key){
       +'</div>'+markLine(g.name)
       +'</div></div><div class="pside" id="neisside"></div></div>';
     p.querySelectorAll('.gtab button').forEach(function(b){ b.onclick=function(){ gi=+b.dataset.g; draw(); }; });
+    /* 260828 — 내용 탭. 학년 탭(.gtab)과 가른다. 빈 탭도 눌린다(비었다는 것을 보여 준다). */
+    p.querySelectorAll('.stab button').forEach(function(b){ b.onclick=function(){ SEC=b.dataset.s; draw(); }; });
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
