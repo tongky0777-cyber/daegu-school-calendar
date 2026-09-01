@@ -2286,7 +2286,7 @@ var LOGIN=(function(){
         +'<label class="fl">어떤 분이신가요</label><div class="checks">'
         +'<label><input type="radio" name="urole" value="parent" checked> 학부모</label>'
         +'<label><input type="radio" name="urole" value="academy"> 학원 관계자</label></div>'
-        +'<label class="fl">소속 또는 학원명 <span class="hint" style="font-weight:600;margin:0">— 학부모님은 비워 두셔도 됩니다</span></label>'
+        +'<label class="fl">소속 또는 학원명 <span class="hint" style="font-weight:600;margin:0">— 비워 두셔도 됩니다</span></label>'
         +'<input type="text" id="uorg" placeholder="예: ○○수학학원 / ○○고 학부모">'
         +'<label class="fl">쓰실 비밀번호 (숫자 4자리)</label>'
         +'<div style="display:flex;gap:10px">'
@@ -2350,7 +2350,6 @@ var LOGIN=(function(){
       var a=(document.getElementById('upin').value||'').trim();
       var b=(document.getElementById('upin2').value||'').trim();
       if(n.replace(/\s/g,'').length<2){ msg('umsg','성과 이름을 다 적어 주십시오.',1); return; }
-      if(r==='academy' && !o){ msg('umsg','학원 관계자는 학원명이나 소속을 적어 주십시오.',1); return; }
       if(!/^\d{4}$/.test(a)){ msg('umsg','비밀번호는 숫자 4자리입니다.',1); return; }
       if(a!==b){ msg('umsg','두 번 적으신 비밀번호가 다릅니다.',1); return; }
       go.disabled=true; msg('umsg','보내는 중…');
