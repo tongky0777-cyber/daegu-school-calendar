@@ -65,10 +65,12 @@ main{max-width:1080px;margin:0 auto;padding:14px 16px 60px}
 .tag.bk{background:var(--gold-bg);color:var(--gold)}
 .cnext{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink2)}
 .cnext b{color:var(--teal);font-weight:800}
-.acad-teaser{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);color:var(--ink2);font-size:12.5px;line-height:1.55}
-.acad-teaser b{color:var(--teal);font-weight:800;margin-right:4px}
-.acad-teaser button{margin-left:4px;padding:3px 7px;font-size:11.5px;font-weight:800;border:1px solid var(--line);
-  background:var(--surface);color:var(--teal);border-radius:7px;cursor:pointer}
+.acad-teaser{margin-top:9px;padding:8px 9px;border:1px solid var(--line);border-left:3px solid var(--teal);
+  border-radius:9px;background:var(--teal-bg);color:var(--ink2);font-size:12.5px;line-height:1.55}
+.acad-teaser b{color:var(--ink);font-weight:800;margin-right:4px}
+.acad-teaser .acad-names{color:var(--teal);font-weight:800}
+.acad-teaser button{margin-left:4px;padding:4px 8px;font-size:11.5px;font-weight:800;border:1px solid var(--teal);
+  background:var(--teal);color:#fff;border-radius:7px;cursor:pointer}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.9}
 .dday{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;padding:1px 6px;border-radius:5px}
 .dd-soon{background:var(--red-bg);color:var(--red)}
@@ -144,6 +146,7 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .acadsummary .tag{cursor:default}
 .acadcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:7px}
 .acadcard.hot{border-color:var(--teal);background:var(--teal-bg)}
+.acadcard.hot .acadname{color:var(--teal)}
 .acadrank{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--teal);background:var(--surface);border:1px solid var(--line);
   border-radius:999px;padding:2px 7px;margin-top:1px}
 .acadhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
@@ -3731,7 +3734,7 @@ function acadTeaserHtml(g){
   var names=ls.slice(0,2).map(function(a){ return a.name; }).join(' · ');
   if(ls.length>2) names+=' 외 '+(ls.length-2);
   return '<div class="acad-teaser"><b>이 학교권 등록 학원 '+ls.length+'곳</b>'
-    +esc(names)+' <button type="button" data-acad-open="'+esc(ls[0].id)+'" data-school="'+esc(g.name)+'">보기</button></div>';
+    +'<span class="acad-names">'+esc(names)+'</span> <button type="button" data-acad-open="'+esc(ls[0].id)+'" data-school="'+esc(g.name)+'">보기</button></div>';
 }
 function acadSchoolHtml(g){
   if(g.lvl!=='중' && g.lvl!=='고') return '';
