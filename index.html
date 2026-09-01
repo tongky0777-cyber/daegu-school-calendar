@@ -3703,8 +3703,7 @@ var ACADEMIES=[{
   extraTargets:['시지고등학교','경신중학교','능인중학교','대륜중학교','오성중학교','대구중앙고등학교','경북대학교사범대학부설중학교'],
   recruiting:['고1 내신','중3 학생'],
   events:[{title:'9월 12일 무료특강',date:'2026-09-12',target:'중2 · 중3 · 고1',apply:'블로그 참고'}],
-  strengths:['중고등 수학 전반 관리','학교별 내신 대비반 운영'],
-  status:'검수중'
+  strengths:['중고등 수학 전반 관리','학교별 내신 대비반 운영']
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
 function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
@@ -3770,7 +3769,7 @@ function openAcademy(id, school){
   var photo=a.photo?'<div class="acadphoto"><div><b>'+esc(a.name)+'</b></div></div>':'';
   var strengths=(a.strengths||[]).filter(Boolean);
   p.innerHTML='<div class="ph"><div><h2>'+esc(a.name)+'</h2>'
-    +'<div class="ctag"><span class="tag lv">'+esc(a.audience)+'</span><span class="tag">'+esc(a.subjects)+'</span><span class="tag bk">'+esc(a.status||'등록')+'</span></div></div>'
+    +'<div class="ctag"><span class="tag lv">'+esc(a.audience)+'</span><span class="tag">'+esc(a.subjects)+'</span></div></div>'
     +'<button class="x" id="x">×</button></div>'
     +'<div class="pb">'+photo
     +'<h3>기본 정보</h3><table><tr><td>주소</td><td>'+esc(a.address)+'</td></tr>'
