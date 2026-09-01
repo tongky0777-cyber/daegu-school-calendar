@@ -65,6 +65,10 @@ main{max-width:1080px;margin:0 auto;padding:14px 16px 60px}
 .tag.bk{background:var(--gold-bg);color:var(--gold)}
 .cnext{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink2)}
 .cnext b{color:var(--teal);font-weight:800}
+.acad-teaser{margin-top:9px;padding:9px 10px;border-radius:9px;background:var(--teal-bg);color:var(--ink2);font-size:12.5px;line-height:1.55}
+.acad-teaser b{display:block;color:var(--teal);font-weight:800;margin-bottom:2px}
+.acad-teaser button{margin-top:7px;padding:5px 9px;font-size:11.5px;font-weight:800;border:1px solid var(--teal);
+  background:var(--surface);color:var(--teal);border-radius:7px;cursor:pointer}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.9}
 .dday{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;padding:1px 6px;border-radius:5px}
 .dd-soon{background:var(--red-bg);color:var(--red)}
@@ -135,6 +139,27 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .difmark{font-size:11.5px;font-weight:800;color:var(--red);background:var(--red-bg);padding:1px 6px;border-radius:5px;margin-left:5px}
 .rng{margin-top:5px;padding:7px 9px;background:var(--surface2);border-radius:7px;font-size:12.5px;line-height:1.65}
 .rng b{color:var(--teal);font-weight:800;margin-right:3px}
+.acadbox{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
+.acadcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:8px}
+.acadcard.hot{border-color:var(--teal);background:linear-gradient(0deg,var(--surface),var(--surface)),var(--teal-bg)}
+.acadhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.acadname{font-size:15px;font-weight:800;color:var(--ink);line-height:1.4}
+.acadmeta{font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:3px}
+.acadchips{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.acadchip{font-size:11px;font-weight:800;padding:2px 7px;border-radius:5px;background:var(--surface2);color:var(--ink2)}
+.acadchip.hot{background:var(--teal-bg);color:var(--teal)}
+.acadacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.acadacts .btn{padding:6px 10px;font-size:12px}
+.acadphoto{min-height:132px;border-radius:12px;background:
+  linear-gradient(135deg,rgba(15,119,102,.24),rgba(43,95,138,.06)),
+  var(--surface2);display:flex;align-items:flex-end;padding:14px;margin-bottom:12px;color:var(--ink2)}
+.acadphoto b{display:block;color:var(--ink);font-size:15px;margin-bottom:3px}
+.acadtargets{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.acadlinks{display:grid;gap:7px;margin-top:9px}
+.acadlinks a{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);
+  border-radius:9px;padding:9px 11px;color:var(--teal);text-decoration:none;font-size:13px;font-weight:800}
+.acadlinks a span{color:var(--muted);font-weight:700;font-size:12px}
+.acadnote{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:8px}
 
 /* 상세 — 오른쪽에 NEIS 달력 칸 */
 .panel.wide{width:min(1140px,calc(100% - 24px))}
@@ -3607,6 +3632,99 @@ var LIST=Object.keys(GROUP).map(function(k){return GROUP[k];});
 LIST.sort(function(a,b){return a.name.localeCompare(b.name,'ko');});
 var BYKEY={}; LIST.forEach(function(g){ BYKEY[g.key]=g; g.hasBooks=!!BK[g.name]; g.next=nextEvent(g); g.nexts=nextByRow(g); });
 
+/* ---------- 학교별 학원 홍보 카드 ---------- */
+var ACADEMIES=[{
+  id:'logicsmath',
+  name:'로직스수학학원',
+  address:'대구 수성구 범어동 140-2 2층 로직스수학학원',
+  phone:'053-716-4705',
+  kakao:'http://pf.kakao.com/_xbxnGhX',
+  blog:'https://blog.naver.com/logicsmath',
+  instagram:'',
+  homepage:'',
+  audience:'중고등 전문',
+  subjects:'중고등 수학 전반',
+  targets:['경신고등학교','대구여자고등학교','능인고등학교','대륜고등학교','오성고등학교'],
+  extraTargets:['시지고등학교','경신중학교','능인중학교','대륜중학교','오성중학교','대구중앙고등학교','경북대학교사범대학부설중학교'],
+  recruiting:['고1 내신','중3 학생'],
+  events:[{title:'9월 12일 무료특강',date:'2026-09-12',target:'중2 · 중3 · 고1',apply:'블로그 참고'}],
+  strengths:['중고등 수학 전반 관리','학교별 내신 대비반 운영'],
+  photoNote:'대표 사진 또는 홍보 이미지는 추후 첨부 예정',
+  status:'검수중'
+}];
+function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
+function academiesForSchool(name){
+  return ACADEMIES.filter(function(a){ return acadSchools(a).indexOf(name)>=0; });
+}
+function academyById(id){
+  return ACADEMIES.filter(function(a){ return a.id===id; })[0]||null;
+}
+function acadEvent(a){
+  var e=(a.events||[])[0];
+  if(!e) return '';
+  return e.title+(e.target?' · '+e.target:'')+(e.apply?' · '+e.apply:'');
+}
+function acadTeaserHtml(g){
+  if(g.lvl!=='중' && g.lvl!=='고') return '';
+  var a=academiesForSchool(g.name)[0];
+  if(!a) return '';
+  return '<div class="acad-teaser"><b>이 학교권 등록 학원</b>'
+    +esc(a.name)+' · '+esc(acadEvent(a)||a.audience)
+    +'<br><button type="button" data-acad-open="'+esc(a.id)+'" data-school="'+esc(g.name)+'">학원 정보 보기</button></div>';
+}
+function acadSchoolHtml(g){
+  if(g.lvl!=='중' && g.lvl!=='고') return '';
+  var ls=academiesForSchool(g.name);
+  if(!ls.length) return '';
+  var h='<div class="acadbox"><h3>학교권 학원 · 설명회</h3>';
+  ls.forEach(function(a,i){
+    h+='<div class="acadcard '+(i===0?'hot':'')+'"><div class="acadhead"><div>'
+      +'<div class="acadname">'+esc(a.name)+'</div>'
+      +'<div class="acadmeta">'+esc(a.audience)+' · '+esc(a.subjects)+'<br>'+esc(acadEvent(a)||'등록된 행사 없음')+'</div></div>'
+      +'<span class="tag bk">'+esc(a.status||'등록')+'</span></div>'
+      +'<div class="acadchips">'
+      +(a.recruiting||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
+      +'<span class="acadchip">타깃 '+(a.targets||[]).length+'개교</span>'
+      +'<span class="acadchip">추가 '+(a.extraTargets||[]).length+'개교</span>'
+      +'</div><div class="acadacts">'
+      +'<button type="button" class="btn ghost" data-acad-open="'+esc(a.id)+'" data-school="'+esc(g.name)+'">학원 상세</button>'
+      +(a.kakao?'<a class="btn" href="'+esc(a.kakao)+'" target="_blank" rel="noopener">카톡 문의</a>':'')
+      +'</div></div>';
+  });
+  return h+'<div class="hint">학교별 학원 노출은 테스트 중입니다. 등록 학원 정보는 확인 뒤 보완됩니다.</div></div>';
+}
+function openAcademy(id, school){
+  var a=academyById(id), p=document.getElementById('panel');
+  if(!a) return;
+  OPENKEY=null;
+  var ev=(a.events||[])[0];
+  var links='';
+  if(a.kakao) links+='<a href="'+esc(a.kakao)+'" target="_blank" rel="noopener">카카오톡 상담 <span>열기</span></a>';
+  if(a.blog) links+='<a href="'+esc(a.blog)+'" target="_blank" rel="noopener">블로그 <span>열기</span></a>';
+  if(a.homepage) links+='<a href="'+esc(a.homepage)+'" target="_blank" rel="noopener">홈페이지 <span>열기</span></a>';
+  if(a.instagram) links+='<a href="'+esc(a.instagram)+'" target="_blank" rel="noopener">인스타그램 <span>열기</span></a>';
+  p.classList.remove('wide');
+  p.innerHTML='<div class="ph"><div><h2>'+esc(a.name)+'</h2>'
+    +'<div class="ctag"><span class="tag lv">'+esc(a.audience)+'</span><span class="tag">'+esc(a.subjects)+'</span><span class="tag bk">'+esc(a.status||'등록')+'</span></div></div>'
+    +'<button class="x" id="x">×</button></div>'
+    +'<div class="pb"><div class="acadphoto"><div><b>'+esc(a.name)+'</b><div>'+esc(a.photoNote||'대표 사진 준비 중')+'</div></div></div>'
+    +'<h3>기본 정보</h3><table><tr><td>주소</td><td>'+esc(a.address)+'</td></tr>'
+    +'<tr><td>연락처</td><td><a href="tel:'+esc(a.phone)+'">'+esc(a.phone)+'</a></td></tr>'
+    +'<tr><td>대상</td><td>'+esc(a.audience)+'</td></tr>'
+    +'<tr><td>과목</td><td>'+esc(a.subjects)+'</td></tr></table>'
+    +'<h3>'+esc(school||'타깃 학교')+' 학부모에게 보일 내용</h3>'
+    +'<div class="acadcard hot"><div class="acadname">'+esc(ev?ev.title:'현재 모집 중인 반')+'</div>'
+    +'<div class="acadmeta">'+(ev?fmt(ev.date)+' · '+esc(ev.target)+' · 신청방법: '+esc(ev.apply):esc((a.recruiting||[]).join(' · ')))+'</div></div>'
+    +'<h3>모집 중</h3><div class="acadtargets">'+(a.recruiting||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')+'</div>'
+    +'<h3>타깃 학교</h3><div class="acadtargets">'+(a.targets||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
+    +(a.extraTargets||[]).map(function(x){ return '<span class="acadchip">'+esc(x)+'</span>'; }).join('')+'</div>'
+    +'<h3>홍보 링크</h3><div class="acadlinks">'+(links||'<div class="notice">등록된 홍보 링크가 없습니다.</div>')+'</div>'
+    +'<h3>학원 강점</h3><table>'+(a.strengths||[]).map(function(x,i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(x)+'</td></tr>'; }).join('')+'</table>'
+    +'<div class="acadnote">첫 등록 샘플입니다. 사진, 홈페이지, 인스타그램, 강점 문구는 원장님 확인 후 보완하면 좋습니다.</div></div>';
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('x').onclick=close;
+}
+
 
 /* ═══ 교시별 시험 시간표 (260827 더함 — 자료가 있는 학교만 뜬다) ═══ */
 var TT = {"대구여자고등학교": {"1~2": {"2": {"src": "학교 시간표 (2026학년도 2학기 중간시험)", "sets": [{"g": "1학년", "note": "공통", "days": [["2026-09-28", ["정규수업"]], ["2026-09-29", ["공통수학2", "통합사회2"]], ["2026-09-30", ["공통영어2", "통합과학2"]], ["2026-10-01", ["공통국어2", "한국사2"]]]}, {"g": "2학년", "note": "학생 선택", "days": [["2026-09-28", ["영어Ⅱ", "세포와 물질대사", "윤리와 사상"]], ["2026-09-29", ["화법과 언어", "물질과 에너지", "세계 문화와 영어", "동아시아 역사 기행"]], ["2026-09-30", ["미적분Ⅱ", "주제 탐구 독서", "법과 사회", "정치 / 지구시스템과학"]], ["2026-10-01", ["확률과 통계", "역학과 에너지", "세계시민과 지리"]]]}]}}, "3": {"3": {"src": "학교 시간표 (2026학년도 2학기 정기시험) — 3학년은 2학기 중간이 없고 이 시험이 정기시험입니다", "sets": [{"g": "3학년", "note": "학생 선택", "days": [["2026-09-28", ["정규수업"]], ["2026-09-29", ["심화국어", "세계사"]], ["2026-09-30", ["심화 수학Ⅰ / 심화 수학Ⅱ", "사회·문화"]], ["2026-10-01", ["심화영어독해Ⅱ", "생활과 윤리"]]]}]}}}, "능인고등학교": {"1~2": {"2": {"src": "학교 시간표 (2026학년도 2학기 1·2학년 중간시험 일정표)", "sets": [{"g": "1학년", "note": "공통", "days": [["2026-09-29", ["자습", "통합사회2", "공통영어2"]], ["2026-09-30", ["자습", "통합과학2"]], ["2026-10-01", ["자습", "한국사2", "공통수학2"]], ["2026-10-02", ["자습", "공통국어2"]]]}, {"g": "2학년", "note": "학생 선택", "days": [["2026-09-29", ["자습", "영어Ⅱ", "윤리와 사상 / 역학과 에너지(물)"]], ["2026-09-30", ["일본문화 / 인공지능기초", "경제수학 / 미적분Ⅱ", "동아시아 역사기행 / 세포와 물질대사(생)"]], ["2026-10-01", ["자습", "확률과 통계", "경제 / 물질과 에너지(화)"]], ["2026-10-02", ["자습", "화법과 언어", "도시의 미래탐구 / 지구시스템과학(지)"]]]}]}}, "3": {"3": {"src": "학교 시간표 (2026학년도 2학기 3학년 기말시험 일정표)", "sets": [{"g": "3학년", "note": "학생 선택", "days": [["2026-09-29", ["자습", "심화영어Ⅱ", "세계지리 / 화학Ⅱ"]], ["2026-09-30", ["영미문학읽기 / 통합수학Ⅱ", "생활과 과학 / 사회문제탐구", "경제 / 지구과학Ⅱ"]], ["2026-10-01", ["자습", "심화수학Ⅱ", "윤리와 사상 / 물리학Ⅱ"]], ["2026-10-02", ["자습", "여행지리 / 고전과윤리 / 융합과학", "세계사 / 생명과학Ⅱ"]]]}]}}}};
@@ -4043,6 +4161,7 @@ function render(){
         +(g.typ?'<span class="tag">'+esc(g.typ)+'</span>':'')
         +(g.hasBooks?'<span class="tag bk">부교재</span>':'')+'</div>'
       +cnextHtml(g)
+      +acadTeaserHtml(g)
       +'</div>'; }).join('');
   if(out.length>400) grid.insertAdjacentHTML('beforeend','<div class="empty">앞의 400개만 보입니다. 이름을 더 넣어 좁혀 주십시오.</div>');
 }
@@ -4227,7 +4346,7 @@ function open(key){
       var on=(t[0]===SEC), empty=!has(S[t[0]]);
       return '<button data-s="'+t[0]+'" class="'+(on?'on':'')+(empty?' off':'')+'">'
         +t[1]+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'; }).join('')+'</div>';
-    return h + tb + '<div class="sbody">' + (S[SEC]||'') + '</div>'; }
+    return h + tb + '<div class="sbody">' + (S[SEC]||'') + '</div>' + acadSchoolHtml(g); }
   function draw(){
     p.innerHTML='<div class="ph"><div><h2>'+esc(g.name)+'</h2>'
       +'<div class="ctag"><span class="tag lv">'+esc(g.lvl)+'</span>'
@@ -4250,6 +4369,9 @@ function open(key){
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
     document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
+    p.querySelectorAll('[data-acad-open]').forEach(function(b){
+      b.onclick=function(e){ e.stopPropagation(); openAcademy(b.dataset.acadOpen, b.dataset.school||g.name); };
+    });
     bindLog(p, g.name);
     /* 교시별 시간표 여닫기 (260827 더함) */
     Array.prototype.forEach.call(p.querySelectorAll('button.ttb'), function(bt){
@@ -4537,6 +4659,8 @@ document.getElementById('clr').onclick=function(){ q=''; document.getElementById
 document.getElementById('grid').onclick=function(e){
   var s=e.target.closest('[data-star]');
   if(s){ e.stopPropagation(); toggleFav(BYKEY[s.dataset.star]); render(); return; }
+  var a=e.target.closest('[data-acad-open]');
+  if(a){ e.stopPropagation(); openAcademy(a.dataset.acadOpen, a.dataset.school||''); return; }
   var c=e.target.closest('.card'); if(c) open(c.dataset.k); };
 document.querySelectorAll('.vt').forEach(function(b){
   b.onclick=function(){ VIEW=b.dataset.v;
