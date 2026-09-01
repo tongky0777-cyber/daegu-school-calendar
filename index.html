@@ -65,9 +65,9 @@ main{max-width:1080px;margin:0 auto;padding:14px 16px 60px}
 .tag.bk{background:var(--gold-bg);color:var(--gold)}
 .cnext{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink2)}
 .cnext b{color:var(--teal);font-weight:800}
-.acad-teaser{margin-top:9px;padding:9px 10px;border-radius:9px;background:var(--teal-bg);color:var(--ink2);font-size:12.5px;line-height:1.55}
-.acad-teaser b{display:block;color:var(--teal);font-weight:800;margin-bottom:2px}
-.acad-teaser button{margin-top:7px;padding:5px 9px;font-size:11.5px;font-weight:800;border:1px solid var(--teal);
+.acad-teaser{margin-top:9px;padding-top:8px;border-top:1px dashed var(--line);color:var(--ink2);font-size:12.5px;line-height:1.55}
+.acad-teaser b{color:var(--teal);font-weight:800;margin-right:4px}
+.acad-teaser button{margin-left:4px;padding:3px 7px;font-size:11.5px;font-weight:800;border:1px solid var(--line);
   background:var(--surface);color:var(--teal);border-radius:7px;cursor:pointer}
 .empty{padding:50px 16px;text-align:center;color:var(--muted);font-size:14px;line-height:1.9}
 .dday{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;padding:1px 6px;border-radius:5px}
@@ -140,8 +140,12 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .rng{margin-top:5px;padding:7px 9px;background:var(--surface2);border-radius:7px;font-size:12.5px;line-height:1.65}
 .rng b{color:var(--teal);font-weight:800;margin-right:3px}
 .acadbox{margin-top:18px;padding-top:14px;border-top:1px solid var(--line)}
-.acadcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px;margin-top:8px}
-.acadcard.hot{border-color:var(--teal);background:linear-gradient(0deg,var(--surface),var(--surface)),var(--teal-bg)}
+.acadsummary{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.acadsummary .tag{cursor:default}
+.acadcard{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 12px;margin-top:7px}
+.acadcard.hot{border-color:var(--teal);background:var(--teal-bg)}
+.acadrank{flex:0 0 auto;font-size:11px;font-weight:800;color:var(--teal);background:var(--surface);border:1px solid var(--line);
+  border-radius:999px;padding:2px 7px;margin-top:1px}
 .acadhead{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
 .acadname{font-size:15px;font-weight:800;color:var(--ink);line-height:1.4}
 .acadmeta{font-size:12.5px;color:var(--ink2);line-height:1.65;margin-top:3px}
@@ -150,6 +154,8 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
 .acadchip.hot{background:var(--teal-bg);color:var(--teal)}
 .acadacts{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .acadacts .btn{padding:6px 10px;font-size:12px}
+.acadmini{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:start}
+.acadmini .acadmeta{margin-top:1px}
 .acadphoto{min-height:132px;border-radius:12px;background:
   linear-gradient(135deg,rgba(15,119,102,.24),rgba(43,95,138,.06)),
   var(--surface2);display:flex;align-items:flex-end;padding:14px;margin-bottom:12px;color:var(--ink2)}
@@ -160,6 +166,10 @@ td:first-child{width:104px;color:var(--ink2);font-weight:700}
   border-radius:9px;padding:9px 11px;color:var(--teal);text-decoration:none;font-size:13px;font-weight:800}
 .acadlinks a span{color:var(--muted);font-weight:700;font-size:12px}
 .acadnote{font-size:12.5px;color:var(--muted);line-height:1.65;margin-top:8px}
+@media(max-width:520px){
+  .acadmini{grid-template-columns:auto 1fr}
+  .acadmini .acadacts{grid-column:1 / -1;margin-top:2px}
+}
 
 /* 상세 — 오른쪽에 NEIS 달력 칸 */
 .panel.wide{width:min(1140px,calc(100% - 24px))}
@@ -1037,6 +1047,7 @@ var AUTH=(function(){
         (d.documents||[]).forEach(function(doc){
           var f=doc.fields||{};
           all.push({ n:(f.n&&f.n.stringValue)||'', o:(f.o&&f.o.stringValue)||'',
+                     r:(f.r&&f.r.stringValue)||'',
                      h:(f.h&&f.h.stringValue)||'',
                      ok:!!(f.ok&&(f.ok.booleanValue===true)),
                      at:(f.at&&f.at.stringValue)||'', doc:doc.name });
@@ -1048,8 +1059,9 @@ var AUTH=(function(){
       .catch(function(){ loaded=false; return 0; });
   }
 
-  function signup(name,org,pin){
+  function signup(name,org,pin,role){
     var body={fields:{ n:{stringValue:name}, o:{stringValue:org||''},
+                       r:{stringValue:role||'academy'},
                        h:{stringValue:fp(name,pin)},
                        at:{stringValue:new Date().toISOString()},
                        ok:{booleanValue:false} }};
@@ -1062,6 +1074,22 @@ var AUTH=(function(){
   var ME=null;
   try{ ME=JSON.parse(localStorage.getItem('dgcal.who')||'null'); }catch(e){}
   function me(){ return ME; }
+  function roleOf(m){
+    if(!m) return '';
+    if(m.admin) return 'admin';
+    if(m.r) return m.r;
+    return 'academy';       // 기존 가입자는 정보 수정 가능 계정으로 유지
+  }
+  function roleName(m){
+    var r=roleOf(m);
+    if(r==='parent') return '학부모';
+    if(r==='admin') return '관리자';
+    return '학원 관계자';
+  }
+  function canEdit(){
+    if(isAdmin()) return true;
+    return !!(ME && roleOf(ME)!=='parent');
+  }
   function nameKey(s){ return String(s||'').replace(/\s/g,''); }
 
   function find(name){
@@ -1080,7 +1108,7 @@ var AUTH=(function(){
     var r=check(name,pin);
     if(r===0){
       var m=find(name).filter(function(x){ return x.ok; })[0]||{};
-      ME={n:m.n||name, o:m.o||'', at:new Date().toISOString()};
+      ME={n:m.n||name, o:m.o||'', r:roleOf(m), at:new Date().toISOString()};
       try{ localStorage.setItem('dgcal.who', JSON.stringify(ME)); }catch(e){}
     }
     return r;
@@ -1112,7 +1140,7 @@ var AUTH=(function(){
         if(d.localId!==ADM) throw 2;
         saveTok({uid:d.localId, id:d.idToken, rt:d.refreshToken,
                  exp:Date.now()+(+d.expiresIn||3600)*1000-60000});
-        ME={n:'김병진', o:'수경수학학원', admin:true, at:new Date().toISOString()};
+        ME={n:'김병진', o:'수경수학학원', r:'admin', admin:true, at:new Date().toISOString()};
         try{ localStorage.setItem('dgcal.who', JSON.stringify(ME)); }catch(e){}
         return 0;
       }).catch(function(e){ return e===2?2:1; });
@@ -1165,6 +1193,7 @@ var AUTH=(function(){
 
   return {on:on, load:load, signup:signup, login:login, logout:logout,
           me:me, verify:verify, pending:pending, count:function(){return MEM.length;},
+          roleOf:roleOf, roleName:roleName, canEdit:canEdit,
           fp:fp, sha256:sha256,
           hasAdmin:function(){return !!ADM;}, isAdmin:isAdmin,
           adminLogin:adminLogin, adminOut:adminOut, setOk:setOk, list:list, token:token,
@@ -1218,8 +1247,9 @@ var ADMIN=(function(){
   }
 
   function row(m){
+    var rn=AUTH.roleName?AUTH.roleName(m):(m.r==='parent'?'학부모':'학원 관계자');
     return '<div class="mrow" data-doc="'+esc(m.doc)+'">'
-      +'<div><b>'+esc(m.n)+'</b>'+(m.o?' <span class="hint" style="margin:0">'+esc(m.o)+'</span>':'')
+      +'<div><b>'+esc(m.n)+'</b> <span class="tag">'+esc(rn)+'</span>'+(m.o?' <span class="hint" style="margin:0">'+esc(m.o)+'</span>':'')
       +'<div class="hint" style="margin:2px 0 0">'+esc((m.at||'').slice(0,10))+'</div></div>'
       +'<button class="btn'+(m.ok?' ghost':'')+'" data-ok="'+(m.ok?'0':'1')+'">'
       +(m.ok?'승인 취소':'승인')+'</button></div>';
@@ -1230,7 +1260,7 @@ var ADMIN=(function(){
     var wait=all.filter(function(m){return !m.ok;});
     var okd=all.filter(function(m){return m.ok;});
     p.innerHTML=head('승인 관리')
-      +'<div class="hint" style="margin:0 0 12px">승인하시면 그 선생님이 바로 들어오실 수 있습니다. '
+      +'<div class="hint" style="margin:0 0 12px">승인하시면 바로 들어오실 수 있습니다. '
       +'취소하시면 다음에 여실 때 다시 막힙니다.</div>'
       +'<label class="fl">승인 기다리는 분 '+wait.length+'명</label>'
       +(wait.length? wait.map(row).join('') : '<div class="hint">없습니다.</div>')
@@ -2129,7 +2159,7 @@ var WEEK=(function(){
     p.querySelectorAll('.todo button[data-k]').forEach(function(b){
       b.onclick=function(e){ e.stopPropagation();
         var x=B.gap[+b.dataset.i]; if(!x) return;
-        LOGIN.need(function(){ close(); SUGGEST.open(x.g, b.dataset.k); }); };
+        LOGIN.needEdit(function(){ close(); SUGGEST.open(x.g, b.dataset.k); }); };
     });
     p.querySelectorAll('.wrow').forEach(function(r){
       r.onclick=function(){ close(); A().open(r.dataset.key); }; });
@@ -2234,7 +2264,7 @@ var LOGIN=(function(){
         ? '2026학년도 대구 학사일정 찾기'
         : (tab==='in'?'로그인':'가입 신청'))+'</h2>'
       +(GATE?'':'<button class="x" id="lx">×</button>')+'</div><div class="pb">'
-      +(GATE?'<div class="hint" style="margin:0 0 12px">선생님들이 함께 만드는 자료입니다. '
+      +(GATE?'<div class="hint" style="margin:0 0 12px">학부모와 학원 관계자가 함께 쓰는 학교 정보입니다. '
         +'<b>로그인하셔야 보실 수 있습니다.</b> 처음이시면 아래 「처음이신가요」에서 신청해 주십시오.</div>':'')
       +'<div class="gtab wrap" style="margin-bottom:14px">'
       +'<button data-t="in" class="'+(tab==='in'?'on':'')+'">로그인</button>'
@@ -2250,8 +2280,11 @@ var LOGIN=(function(){
     }else{
       h+='<label class="fl">이름 <span class="hint" style="font-weight:600;margin:0">— 성과 이름을 다 적어 주십시오</span></label>'
         +'<input type="text" id="uname" placeholder="예: 홍길동">'
-        +'<label class="fl">학원 (안 적으셔도 됩니다)</label>'
-        +'<input type="text" id="uorg" placeholder="예: ○○수학학원">'
+        +'<label class="fl">어떤 분이신가요</label><div class="checks">'
+        +'<label><input type="radio" name="urole" value="parent" checked> 학부모</label>'
+        +'<label><input type="radio" name="urole" value="academy"> 학원 관계자</label></div>'
+        +'<label class="fl">소속 또는 학원명 <span class="hint" style="font-weight:600;margin:0">— 학부모님은 비워 두셔도 됩니다</span></label>'
+        +'<input type="text" id="uorg" placeholder="예: ○○수학학원 / ○○고 학부모">'
         +'<label class="fl">쓰실 비밀번호 (숫자 4자리)</label>'
         +'<div style="display:flex;gap:10px">'
         +'<input type="password" class="pin" id="upin" inputmode="numeric" maxlength="4" placeholder="0000">'
@@ -2259,7 +2292,7 @@ var LOGIN=(function(){
         +'<div class="hint">비밀번호는 <b>원문이 보내지지 않습니다.</b> 알아볼 수 없는 지문으로 바뀌어 저장되므로 운영자도 무엇인지 모릅니다. '
         +'다만 4자리는 경우의 수가 적으니 <b>다른 곳에서 쓰시는 비밀번호는 피해 주십시오.</b></div>'
         +'<div class="acts"><button class="btn" id="ugo">신청하기</button></div>'
-        +'<div class="hint" id="umsg">신청하시면 김병진T가 확인한 뒤 열어 드립니다. 대개 하루 안에 됩니다.</div>';
+        +'<div class="hint" id="umsg">학부모님은 보기만 가능하고, 학원 관계자는 승인 뒤 정보 수정도 가능합니다.</div>';
     }
     if(GATE && typeof AUTH!=='undefined' && AUTH.hasAdmin())
       h+='<div class="hint" style="text-align:center;margin-top:16px">'
@@ -2310,16 +2343,19 @@ var LOGIN=(function(){
     go.onclick=function(){
       var n=(document.getElementById('uname').value||'').trim();
       var o=(document.getElementById('uorg').value||'').trim();
+      var r=(p.querySelector('input[name="urole"]:checked')||{}).value||'parent';
       var a=(document.getElementById('upin').value||'').trim();
       var b=(document.getElementById('upin2').value||'').trim();
       if(n.replace(/\s/g,'').length<2){ msg('umsg','성과 이름을 다 적어 주십시오.',1); return; }
+      if(r==='academy' && !o){ msg('umsg','학원 관계자는 학원명이나 소속을 적어 주십시오.',1); return; }
       if(!/^\d{4}$/.test(a)){ msg('umsg','비밀번호는 숫자 4자리입니다.',1); return; }
       if(a!==b){ msg('umsg','두 번 적으신 비밀번호가 다릅니다.',1); return; }
       go.disabled=true; msg('umsg','보내는 중…');
-      AUTH.signup(n,o,a).then(function(){
+      AUTH.signup(n,o,a,r).then(function(){
+        var rn=(r==='parent')?'학부모':'학원 관계자';
         p.innerHTML='<div class="ph"><h2>신청했습니다</h2>'+(GATE?'':'<button class="x" id="lx">×</button>')+'</div>'
           +'<div class="pb"><div class="notice">'
-          +'<b>'+esc(n)+'</b> 선생님으로 신청이 들어갔습니다.<br>'
+          +'<b>'+esc(n)+'</b> 님이 <b>'+rn+'</b>로 신청되었습니다.<br>'
           +'김병진T가 확인한 뒤 열어 드립니다. 열리면 <b>같은 이름과 비밀번호</b>로 로그인하시면 됩니다.<br>'
           +'비밀번호는 잊지 마십시오 — 저장된 것이 지문뿐이라 알려 드릴 수가 없습니다.'
           +'</div><div class="acts"><button class="btn ghost" id="lclose">'+(GATE?'로그인 화면으로':'닫기')+'</button></div></div>';
@@ -2335,8 +2371,20 @@ var LOGIN=(function(){
     if(AUTH.me()){ fn(); return; }
     open('in', fn);
   }
+  function needEdit(fn){
+    if(!AUTH.on()){ fn(); return; }
+    if(AUTH.me()){
+      if(AUTH.canEdit && AUTH.canEdit()){ fn(); return; }
+      alert('학부모 계정은 정보 수정이 불가능합니다. 학교 일정과 학원 정보는 보실 수 있습니다.');
+      return;
+    }
+    open('in', function(){
+      if(AUTH.canEdit && AUTH.canEdit()) fn();
+      else alert('학부모 계정은 정보 수정이 불가능합니다. 학교 일정과 학원 정보는 보실 수 있습니다.');
+    });
+  }
 
-  return {open:open, close:close, need:need, gate:gate, ungate:ungate};
+  return {open:open, close:close, need:need, needEdit:needEdit, gate:gate, ungate:ungate};
 })();
 </script>
 <script>/* ===== 수정 제안 ===== */
@@ -2415,6 +2463,10 @@ var SUGGEST=(function(){
   var EXNAME=['1학기 중간','1학기 기말','2학기 중간','2학기 기말'];
 
   function open(g, tab){
+    if(typeof AUTH!=='undefined' && AUTH.on() && AUTH.me() && AUTH.canEdit && !AUTH.canEdit()){
+      alert('학부모 계정은 정보 수정이 불가능합니다. 학교 일정과 학원 정보는 보실 수 있습니다.');
+      return;
+    }
     var p=document.getElementById('spanel'), kind=tab||'book';
     var RGPICK=null;                 // 시험범위 「이미 들어 있는 것」 딱지로 고른 자리
     if(typeof selDepts!=='undefined' && selDepts.length===1) curD=selDepts[0];
@@ -3635,6 +3687,7 @@ var BYKEY={}; LIST.forEach(function(g){ BYKEY[g.key]=g; g.hasBooks=!!BK[g.name];
 /* ---------- 학교별 학원 홍보 카드 ---------- */
 var ACADEMIES=[{
   id:'logicsmath',
+  registeredAt:'2026-09-01',
   name:'로직스수학학원',
   address:'대구 수성구 범어동 140-2 2층 로직스수학학원',
   phone:'053-716-4705',
@@ -3649,12 +3702,19 @@ var ACADEMIES=[{
   recruiting:['고1 내신','중3 학생'],
   events:[{title:'9월 12일 무료특강',date:'2026-09-12',target:'중2 · 중3 · 고1',apply:'블로그 참고'}],
   strengths:['중고등 수학 전반 관리','학교별 내신 대비반 운영'],
-  photoNote:'대표 사진 또는 홍보 이미지는 추후 첨부 예정',
   status:'검수중'
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
+function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
 function academiesForSchool(name){
-  return ACADEMIES.filter(function(a){ return acadSchools(a).indexOf(name)>=0; });
+  return ACADEMIES.filter(function(a){ return acadSchools(a).indexOf(name)>=0; })
+    .sort(function(a,b){
+      var at=(a.topSchools||[]).indexOf(name)>=0, bt=(b.topSchools||[]).indexOf(name)>=0;
+      if(at!==bt) return at?-1:1;
+      var ae=hasAcadEvent(a), be=hasAcadEvent(b);
+      if(ae!==be) return ae?-1:1;
+      return String(a.registeredAt||'9999').localeCompare(String(b.registeredAt||'9999'));
+    });
 }
 function academyById(id){
   return ACADEMIES.filter(function(a){ return a.id===id; })[0]||null;
@@ -3666,32 +3726,33 @@ function acadEvent(a){
 }
 function acadTeaserHtml(g){
   if(g.lvl!=='중' && g.lvl!=='고') return '';
-  var a=academiesForSchool(g.name)[0];
-  if(!a) return '';
-  return '<div class="acad-teaser"><b>이 학교권 등록 학원</b>'
-    +esc(a.name)+' · '+esc(acadEvent(a)||a.audience)
-    +'<br><button type="button" data-acad-open="'+esc(a.id)+'" data-school="'+esc(g.name)+'">학원 정보 보기</button></div>';
+  var ls=academiesForSchool(g.name);
+  if(!ls.length) return '';
+  var names=ls.slice(0,2).map(function(a){ return a.name; }).join(' · ');
+  if(ls.length>2) names+=' 외 '+(ls.length-2);
+  return '<div class="acad-teaser"><b>이 학교권 등록 학원 '+ls.length+'곳</b>'
+    +esc(names)+' <button type="button" data-acad-open="'+esc(ls[0].id)+'" data-school="'+esc(g.name)+'">보기</button></div>';
 }
 function acadSchoolHtml(g){
   if(g.lvl!=='중' && g.lvl!=='고') return '';
   var ls=academiesForSchool(g.name);
   if(!ls.length) return '';
-  var h='<div class="acadbox"><h3>학교권 학원 · 설명회</h3>';
+  var h='<div class="acadbox"><h3>학교권 학원 · 설명회</h3>'
+    +'<div class="acadsummary"><span class="tag bk">등록 '+ls.length+'곳</span><span class="tag">먼저 등록한 순서</span>'
+    +'<span class="tag">행사 있는 학원 우선</span></div>';
   ls.forEach(function(a,i){
-    h+='<div class="acadcard '+(i===0?'hot':'')+'"><div class="acadhead"><div>'
-      +'<div class="acadname">'+esc(a.name)+'</div>'
-      +'<div class="acadmeta">'+esc(a.audience)+' · '+esc(a.subjects)+'<br>'+esc(acadEvent(a)||'등록된 행사 없음')+'</div></div>'
-      +'<span class="tag bk">'+esc(a.status||'등록')+'</span></div>'
+    var top=(a.topSchools||[]).indexOf(g.name)>=0;
+    h+='<div class="acadcard '+(i===0?'hot':'')+'"><div class="acadmini">'
+      +'<div class="acadrank">'+(top?'상단':(i+1))+'</div>'
+      +'<div><div class="acadname">'+esc(a.name)+'</div>'
+      +'<div class="acadmeta">'+esc(acadEvent(a)||a.audience)+'<br>'+esc(a.audience)+' · '+esc(a.subjects)+'</div>'
       +'<div class="acadchips">'
-      +(a.recruiting||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
-      +'<span class="acadchip">타깃 '+(a.targets||[]).length+'개교</span>'
-      +'<span class="acadchip">추가 '+(a.extraTargets||[]).length+'개교</span>'
-      +'</div><div class="acadacts">'
-      +'<button type="button" class="btn ghost" data-acad-open="'+esc(a.id)+'" data-school="'+esc(g.name)+'">학원 상세</button>'
-      +(a.kakao?'<a class="btn" href="'+esc(a.kakao)+'" target="_blank" rel="noopener">카톡 문의</a>':'')
+      +(a.recruiting||[]).slice(0,2).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
+      +'<span class="acadchip">기본 '+(a.targets||[]).length+'개교</span></div></div>'
+      +'<div class="acadacts"><button type="button" class="btn ghost" data-acad-open="'+esc(a.id)+'" data-school="'+esc(g.name)+'">상세</button></div>'
       +'</div></div>';
   });
-  return h+'<div class="hint">학교별 학원 노출은 테스트 중입니다. 등록 학원 정보는 확인 뒤 보완됩니다.</div></div>';
+  return h+'<div class="hint">기본 등록은 순서 보장 없이 먼저 등록한 순서로 두고, 나중에 학교별 상단 노출만 따로 상품화하면 됩니다.</div></div>';
 }
 function openAcademy(id, school){
   var a=academyById(id), p=document.getElementById('panel');
@@ -3704,10 +3765,12 @@ function openAcademy(id, school){
   if(a.homepage) links+='<a href="'+esc(a.homepage)+'" target="_blank" rel="noopener">홈페이지 <span>열기</span></a>';
   if(a.instagram) links+='<a href="'+esc(a.instagram)+'" target="_blank" rel="noopener">인스타그램 <span>열기</span></a>';
   p.classList.remove('wide');
+  var photo=a.photo?'<div class="acadphoto"><div><b>'+esc(a.name)+'</b></div></div>':'';
+  var strengths=(a.strengths||[]).filter(Boolean);
   p.innerHTML='<div class="ph"><div><h2>'+esc(a.name)+'</h2>'
     +'<div class="ctag"><span class="tag lv">'+esc(a.audience)+'</span><span class="tag">'+esc(a.subjects)+'</span><span class="tag bk">'+esc(a.status||'등록')+'</span></div></div>'
     +'<button class="x" id="x">×</button></div>'
-    +'<div class="pb"><div class="acadphoto"><div><b>'+esc(a.name)+'</b><div>'+esc(a.photoNote||'대표 사진 준비 중')+'</div></div></div>'
+    +'<div class="pb">'+photo
     +'<h3>기본 정보</h3><table><tr><td>주소</td><td>'+esc(a.address)+'</td></tr>'
     +'<tr><td>연락처</td><td><a href="tel:'+esc(a.phone)+'">'+esc(a.phone)+'</a></td></tr>'
     +'<tr><td>대상</td><td>'+esc(a.audience)+'</td></tr>'
@@ -3719,8 +3782,8 @@ function openAcademy(id, school){
     +'<h3>타깃 학교</h3><div class="acadtargets">'+(a.targets||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
     +(a.extraTargets||[]).map(function(x){ return '<span class="acadchip">'+esc(x)+'</span>'; }).join('')+'</div>'
     +'<h3>홍보 링크</h3><div class="acadlinks">'+(links||'<div class="notice">등록된 홍보 링크가 없습니다.</div>')+'</div>'
-    +'<h3>학원 강점</h3><table>'+(a.strengths||[]).map(function(x,i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(x)+'</td></tr>'; }).join('')+'</table>'
-    +'<div class="acadnote">첫 등록 샘플입니다. 사진, 홈페이지, 인스타그램, 강점 문구는 원장님 확인 후 보완하면 좋습니다.</div></div>';
+    +(strengths.length?'<h3>학원 강점</h3><table>'+strengths.map(function(x,i){ return '<tr><td>'+(i+1)+'</td><td>'+esc(x)+'</td></tr>'; }).join('')+'</table>':'')
+    +'<div class="acadnote">학교별 학원 정보는 등록 순서와 행사 정보를 기준으로 노출됩니다.</div></div>';
   document.getElementById('sheet').classList.add('on');
   document.getElementById('x').onclick=close;
 }
@@ -4091,7 +4154,7 @@ function renderSoon(){
   box.querySelectorAll('.todo button[data-k]').forEach(function(b){
     b.onclick=function(e){ e.stopPropagation();
       var x=ls[+b.dataset.i];
-      LOGIN.need(function(){ SUGGEST.open(x.g, b.dataset.k); }); };
+      LOGIN.needEdit(function(){ SUGGEST.open(x.g, b.dataset.k); }); };
   });
   box.querySelectorAll('.srow').forEach(function(r){
     r.onclick=function(){ open(r.dataset.key); }; });
@@ -4348,6 +4411,7 @@ function open(key){
         +t[1]+(t[2]?'<span class="n">'+t[2]+'</span>':'')+'</button>'; }).join('')+'</div>';
     return h + tb + '<div class="sbody">' + (S[SEC]||'') + '</div>' + acadSchoolHtml(g); }
   function draw(){
+    var editLocked=(typeof AUTH!=='undefined' && AUTH.on() && AUTH.me() && AUTH.canEdit && !AUTH.canEdit());
     p.innerHTML='<div class="ph"><div><h2>'+esc(g.name)+'</h2>'
       +'<div class="ctag"><span class="tag lv">'+esc(g.lvl)+'</span>'
       +(g.off?'<span class="tag">'+esc(g.off)+'</span>':'')
@@ -4357,10 +4421,12 @@ function open(key){
       +'<button class="x" id="x">×</button></div>'
       +'<div class="pcols"><div class="pb">'+body()
       +'<div style="margin-top:22px;padding-top:16px;border-top:1px solid var(--line)">'
-      +'<button class="btn ghost" id="sugb" style="width:100%;padding:12px">이 학교 정보 고쳐 주기 · 부교재 알려 주기</button>'
+      +'<button class="btn ghost" id="sugb" style="width:100%;padding:12px"'+(editLocked?' disabled':'')+'>'
+      +(editLocked?'학부모 계정은 보기만 가능합니다':'이 학교 정보 고쳐 주기 · 부교재 알려 주기')+'</button>'
       +'<div class="hint" style="text-align:center">'
-      +(DIRECT()? '바뀐 시험일이나 부교재를 아시면 <b>직접 고쳐 주십시오.</b> 누르면 바로 반영됩니다.'
-                : '바뀐 시험일이나 부교재를 아시면 알려 주십시오. 확인 뒤 모두에게 반영됩니다.')
+      +(editLocked ? '정보 수정은 승인된 학원 관계자 계정에서만 가능합니다.'
+        : (DIRECT()? '바뀐 시험일이나 부교재를 아시면 <b>직접 고쳐 주십시오.</b> 누르면 바로 반영됩니다.'
+                   : '바뀐 시험일이나 부교재를 아시면 알려 주십시오. 확인 뒤 모두에게 반영됩니다.'))
       +'</div>'+markLine(g.name)
       +'</div></div><div class="pside" id="neisside"></div></div>';
     p.querySelectorAll('.gtab button').forEach(function(b){ b.onclick=function(){ gi=+b.dataset.g; draw(); }; });
@@ -4368,7 +4434,7 @@ function open(key){
     p.querySelectorAll('.stab button').forEach(function(b){ b.onclick=function(){ SEC=b.dataset.s; draw(); }; });
     document.getElementById('x').onclick=close;
     document.getElementById('favb').onclick=function(){ toggleFav(g); draw(); render(); };
-    document.getElementById('sugb').onclick=function(){ LOGIN.need(function(){ SUGGEST.open(g); }); };
+    document.getElementById('sugb').onclick=function(){ LOGIN.needEdit(function(){ SUGGEST.open(g); }); };
     p.querySelectorAll('[data-acad-open]').forEach(function(b){
       b.onclick=function(e){ e.stopPropagation(); openAcademy(b.dataset.acadOpen, b.dataset.school||g.name); };
     });
@@ -4702,9 +4768,9 @@ function whoPaint(){
   if(typeof AUTH==='undefined' || !AUTH.on()){ b.style.display='none'; return; }
   b.style.display='';
   var m=AUTH.me();
-  b.textContent = m ? (m.n+' 선생님') : '로그인';
+  b.textContent = m ? (m.n+' · '+(AUTH.roleName?AUTH.roleName(m):'회원')) : '로그인';
   b.onclick = m
-    ? function(){ if(confirm(m.n+' 선생님, 로그아웃하시겠습니까?\n다음에 다시 이름과 비밀번호를 넣으셔야 합니다.')){
+    ? function(){ if(confirm(m.n+' 님, 로그아웃하시겠습니까?\n다음에 다시 이름과 비밀번호를 넣으셔야 합니다.')){
         AUTH.logout(); whoPaint(); render();
         if(typeof LOCK_VIEW!=='undefined' && LOCK_VIEW) LOGIN.gate(); } }
     : function(){ LOGIN.open('in'); };
