@@ -3704,6 +3704,28 @@ var ACADEMIES=[{
   recruiting:['고1 내신','중3 학생'],
   events:[{title:'9월 12일 무료특강',date:'2026-09-12',target:'중2 · 중3 · 고1',apply:'블로그 참고'}],
   strengths:['중고등 수학 전반 관리','학교별 내신 대비반 운영']
+},{
+  id:'knewmath',
+  registeredAt:'2026-09-02',
+  name:'케이뉴 수학학원',
+  address:'대구광역시 달서구 조암로 40, 한영빌딩 B동 3층',
+  addressNote:'CU 월성메르디앙점 건물',
+  phone:'053-637-3336',
+  kakao:'https://pf.kakao.com/_xgZqwX',
+  blog:'https://blog.naver.com/knewmath',
+  instagram:'',
+  homepage:'',
+  audience:'초등 사고력 · 중고등 내신',
+  subjects:'수학',
+  targets:['월암중학교','월서중학교','영남중학교','학산중학교','조암중학교'],
+  extraTargets:['효성여자고등학교','영남고등학교','대곡고등학교','대진고등학교','대구상원고등학교','대구월암초등학교','대구신월초등학교','대구조암초등학교','대구학산초등학교'],
+  recruiting:['초4 사고력반','초5 사고력반','중1 진도반','중2 내신대비반','고1 진도반'],
+  events:[],
+  strengths:[
+    '원장 직강 1:1 맞춤 개념 체화',
+    '편안한 질문 분위기와 데이터 기반 오답·복습 관리',
+    '초등 사고력부터 고등 내신까지 이어지는 학교별 수학 관리'
+  ]
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
 function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
@@ -3726,7 +3748,6 @@ function acadEvent(a){
   return e.title+(e.target?' · '+e.target:'')+(e.apply?' · '+e.apply:'');
 }
 function acadTeaserHtml(g){
-  if(g.lvl!=='중' && g.lvl!=='고') return '';
   var ls=academiesForSchool(g.name);
   if(!ls.length) return '';
   var names=ls.slice(0,2).map(function(a){ return a.name; }).join(' · ');
@@ -3735,7 +3756,6 @@ function acadTeaserHtml(g){
     +'<span class="acad-names">'+esc(names)+'</span> <button type="button" data-acad-open="'+esc(ls[0].id)+'" data-school="'+esc(g.name)+'">보기</button></div>';
 }
 function acadSchoolHtml(g){
-  if(g.lvl!=='중' && g.lvl!=='고') return '';
   var ls=academiesForSchool(g.name);
   if(!ls.length) return '';
   var h='<div class="acadbox"><h3>학교권 학원 · 설명회</h3>'
@@ -3772,7 +3792,7 @@ function openAcademy(id, school){
     +'<div class="ctag"><span class="tag lv">'+esc(a.audience)+'</span><span class="tag">'+esc(a.subjects)+'</span></div></div>'
     +'<button class="x" id="x">×</button></div>'
     +'<div class="pb">'+photo
-    +'<h3>기본 정보</h3><table><tr><td>주소</td><td>'+esc(a.address)+'</td></tr>'
+    +'<h3>기본 정보</h3><table><tr><td>주소</td><td>'+esc(a.address)+(a.addressNote?'<div class="hint" style="margin:2px 0 0">'+esc(a.addressNote)+'</div>':'')+'</td></tr>'
     +'<tr><td>연락처</td><td><a href="tel:'+esc(a.phone)+'">'+esc(a.phone)+'</a></td></tr>'
     +'<tr><td>대상</td><td>'+esc(a.audience)+'</td></tr>'
     +'<tr><td>과목</td><td>'+esc(a.subjects)+'</td></tr></table>'
