@@ -335,6 +335,10 @@ input.pin{text-align:center;letter-spacing:.55em;text-indent:.55em;font-size:19p
 .mrow{display:flex;align-items:center;justify-content:space-between;gap:10px;
   padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;margin-top:8px}
 .mrow .btn{padding:7px 14px;font-size:13px;flex:none}
+.mrow .mbtns{display:flex;gap:6px;flex:none}
+.mrow .btn.del{background:#fff;color:#b0453a;border:1px solid #e7c4bf}
+.mrow .btn.del:hover{background:#fdf3f2}
+.mrow .btn.del.arm{background:#b0453a;color:#fff;border-color:#b0453a}
 .showme{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;cursor:pointer;
   margin-top:10px;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--surface2)}
 .showme input{width:17px;height:17px;flex:none;cursor:pointer}
@@ -1188,6 +1192,19 @@ var AUTH=(function(){
          body:JSON.stringify({fields:{ok:{booleanValue:!!ok}}})});
     }).then(function(r){ if(!r.ok) throw 0; return true; });
   }
+  /* 260902 — 잘못 낸 신청을 지운다. 관리자만. 규칙에서도 관리자 uid 로 막혀 있다 */
+  function del(docName){
+    return token().then(function(t){
+      return fetch('https://firestore.googleapis.com/v1/'+docName+'?key='+encodeURIComponent(KEY),
+        {method:'DELETE',headers:{'Authorization':'Bearer '+t}});
+    }).then(function(r){
+      if(r.ok) return true;
+      return r.text().then(function(x){
+        var why=''; try{ var j=JSON.parse(x); why=(j.error&&(j.error.status||j.error.message))||''; }catch(e){ why=String(x).slice(0,120); }
+        var er=new Error('del '+r.status); er.code=r.status; er.why=why; throw er;
+      }, function(){ var er=new Error('del '+r.status); er.code=r.status; er.why=''; throw er; });
+    });
+  }
   function list(){ return MEM.slice().sort(function(a,b){ return a.at<b.at?1:-1; }); }
 
   /* 기다리는 사람만 세어 온다 — 전체를 받지 않으므로 가볍다 */
@@ -1214,7 +1231,7 @@ var AUTH=(function(){
           roleOf:roleOf, roleName:roleName, canEdit:canEdit,
           fp:fp, sha256:sha256,
           hasAdmin:function(){return !!ADM;}, isAdmin:isAdmin,
-          adminLogin:adminLogin, adminOut:adminOut, setOk:setOk, list:list, token:token,
+          adminLogin:adminLogin, adminOut:adminOut, setOk:setOk, del:del, list:list, token:token,
           pendingCount:pendingCount};
 })();
 </script>
@@ -1269,8 +1286,9 @@ var ADMIN=(function(){
     return '<div class="mrow" data-doc="'+esc(m.doc)+'">'
       +'<div><b>'+esc(m.n)+'</b> <span class="tag">'+esc(rn)+'</span>'+(m.o?' <span class="hint" style="margin:0">'+esc(m.o)+'</span>':'')
       +'<div class="hint" style="margin:2px 0 0">'+esc((m.at||'').slice(0,10))+'</div></div>'
-      +'<button class="btn'+(m.ok?' ghost':'')+'" data-ok="'+(m.ok?'0':'1')+'">'
-      +(m.ok?'승인 취소':'승인')+'</button></div>';
+      +'<span class="mbtns"><button class="btn'+(m.ok?' ghost':'')+'" data-ok="'+(m.ok?'0':'1')+'">'
+      +(m.ok?'승인 취소':'승인')+'</button>'
+      +'<button class="btn del" data-del="1">지우기</button></span></div>';
   }
 
   function list(){
@@ -1279,7 +1297,8 @@ var ADMIN=(function(){
     var okd=all.filter(function(m){return m.ok;});
     p.innerHTML=head('승인 관리')
       +'<div class="hint" style="margin:0 0 12px">승인하시면 바로 들어오실 수 있습니다. '
-      +'취소하시면 다음에 여실 때 다시 막힙니다.</div>'
+      +'취소하시면 다음에 여실 때 다시 막힙니다.<br>'
+      +'잘못 낸 신청은 <b>「지우기」</b>로 아주 없앨 수 있습니다 — 두 번 눌러야 지워지고, <b>되돌릴 수 없습니다.</b></div>'
       +'<label class="fl">승인 기다리는 분 '+wait.length+'명</label>'
       +(wait.length? wait.map(row).join('') : '<div class="hint">없습니다.</div>')
       +'<label class="fl" style="margin-top:18px">쓰고 계신 분 '+okd.length+'명</label>'
@@ -1295,8 +1314,35 @@ var ADMIN=(function(){
       if(typeof DGCAL!=='undefined') DGCAL.whoPaint(); close();
       if(typeof LOGIN!=='undefined' && typeof LOCK_VIEW!=='undefined' && LOCK_VIEW) LOGIN.gate(); };
     p.querySelectorAll('.mrow button').forEach(function(b){
+      var doc=b.closest('.mrow').dataset.doc;
+      if(b.dataset.del){
+        /* 260902 — 두 번 눌러야 지워진다. 한 번 지우면 되돌릴 수 없다 */
+        b.onclick=function(){
+          if(!b.classList.contains('arm')){
+            p.querySelectorAll('.mrow button.del.arm').forEach(function(o){
+              o.classList.remove('arm'); o.textContent='지우기'; });
+            b.classList.add('arm'); b.textContent='정말 지울까요?';
+            document.getElementById('amsg').textContent='한 번 더 누르면 아주 지워집니다. 되돌릴 수 없습니다.';
+            setTimeout(function(){ if(b.classList.contains('arm')){ b.classList.remove('arm'); b.textContent='지우기'; } },6000);
+            return;
+          }
+          b.disabled=true; b.textContent='…';
+          AUTH.del(doc).then(function(){ return AUTH.load(); })
+            .then(function(){ if(window.DGWATCH) DGWATCH.once(); return list(); })
+            .catch(function(err){
+              b.disabled=false; b.classList.remove('arm'); b.textContent='지우기';
+              var c=(err&&err.code)||0, w=(err&&err.why)||'';
+              document.getElementById('amsg').innerHTML =
+                (c===403||/PERMISSION_DENIED/i.test(w)
+                  ? '<b>서버가 막았습니다 (403).</b> 파이어베이스 규칙의 <b>members</b> 에 지우기가 아직 안 열렸습니다.'
+                  : '<b>지우지 못했습니다'+(c?' ('+c+')':'')+'.</b>')
+                + (w?'<br><span style="opacity:.65">'+esc(w)+'</span>':'');
+            });
+        };
+        return;
+      }
       b.onclick=function(){
-        var doc=b.parentNode.dataset.doc, want=b.dataset.ok==='1';
+        var want=b.dataset.ok==='1';
         b.disabled=true; b.textContent='…';
         AUTH.setOk(doc,want).then(function(){ return AUTH.load(); })
           .then(function(){ if(window.DGWATCH) DGWATCH.once(); return list(); })
