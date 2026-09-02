@@ -1317,12 +1317,37 @@ var ADMIN=(function(){
       +'<label class="fl" style="margin-top:18px">쓰고 계신 분 '+okd.length+'명</label>'
       +(okd.length? okd.map(row).join('') : '<div class="hint">아직 없습니다.</div>')
       +'<div class="acts"><button class="btn ghost" id="arel">새로 받기</button>'
+      +'<button class="btn ghost" id="achk">지우기 되는지 보기</button>'
       +'<button class="btn ghost" id="aout">관리자 로그아웃</button></div>'
       +'<div class="hint" id="amsg"></div></div>';
     bindX();
     document.getElementById('arel').onclick=function(){
       if(window.DGWATCH) DGWATCH.once();
       AUTH.load().then(list); };
+    /* 260902 — 지우기가 왜 안 되는지 그 자리에서 재 본다. 아무것도 지우지 않는다 */
+    document.getElementById('achk').onclick=function(){
+      var am=document.getElementById('amsg');
+      am.textContent='재는 중…';
+      AUTH.token().then(function(t){
+        var head=String(t||'').split('.')[1]||'';
+        var uid='';
+        try{ uid=JSON.parse(atob(head.replace(/-/g,'+').replace(/_/g,'/'))).user_id||''; }catch(e){}
+        var one=AUTH.list()[0];
+        var path=one? one.doc.replace(/\/[^\/]+$/,'/zzzzNoSuchDoc00000001') : '';
+        if(!path){ am.textContent='잴 자리가 없습니다.'; return; }
+        return fetch('https://firestore.googleapis.com/v1/'+path,
+          {method:'DELETE',headers:{'Authorization':'Bearer '+t}})
+          .then(function(r){ return r.text().then(function(x){
+            var why=''; try{ var j=JSON.parse(x); why=(j.error&&(j.error.status||j.error.message))||'ok'; }catch(e){ why=String(x).slice(0,80); }
+            am.innerHTML='관리자 토큰 '+(t?'있음':'없음')+' · 내 uid <b>'+esc(uid||'(못 읽음)')+'</b><br>'
+              +'없는 자리 지우기 시험 → <b>'+r.status+' · '+esc(why)+'</b><br>'
+              +(r.ok? '<b>지우기가 열려 있습니다.</b> 이제 「지우기」가 됩니다.'
+                    : '<b>아직 막혀 있습니다.</b> 규칙의 uid 와 위 uid 가 같은지 보십시오.');
+          }); });
+      }).catch(function(e){
+        document.getElementById('amsg').innerHTML='<b>관리자 토큰을 못 얻었습니다.</b> 관리자로 다시 로그인해 주십시오.';
+      });
+    };
     document.getElementById('aout').onclick=function(){ AUTH.adminOut();
       if(typeof DGCAL!=='undefined') DGCAL.whoPaint(); close();
       if(typeof LOGIN!=='undefined' && typeof LOCK_VIEW!=='undefined' && LOCK_VIEW) LOGIN.gate(); };
@@ -1335,8 +1360,7 @@ var ADMIN=(function(){
             p.querySelectorAll('.mrow button.del.arm').forEach(function(o){
               o.classList.remove('arm'); o.textContent='지우기'; });
             b.classList.add('arm'); b.textContent='정말 지울까요?';
-            document.getElementById('amsg').textContent='한 번 더 누르면 아주 지워집니다. 되돌릴 수 없습니다.';
-            setTimeout(function(){ if(b.classList.contains('arm')){ b.classList.remove('arm'); b.textContent='지우기'; } },6000);
+            document.getElementById('amsg').textContent='한 번 더 누르면 아주 지워집니다. 되돌릴 수 없습니다. (그만두시려면 다른 곳을 누르십시오)';
             return;
           }
           b.disabled=true; b.textContent='…';
