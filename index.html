@@ -488,7 +488,11 @@ table.tt td.ttn{color:#9aa8a4;font-weight:600}
 .pprow button.ppj{flex:0 0 auto;padding:6px 9px;font-size:11.5px;font-weight:700;border:1px solid #cfdcd8;
   background:#fff;color:#0f7766;border-radius:8px;cursor:pointer}
 .pprow button.ppj.on{background:#0f7766;color:#fff;border-color:#0f7766}
+.pprow input.pin3b{background:#fcfdfd}
+.pprow .ppslash{flex:0 0 auto;font-size:12px;font-weight:800;color:#9aa8a4}
 @media(max-width:360px){ .pprow .ppl{flex:0 0 52px} .pprow input{font-size:13px} }
+@media(max-width:520px){ .pprow{flex-wrap:wrap} .pprow input{flex:1 1 100%} .pprow .ppslash{display:none}
+  .pprow input.pin3b{margin-left:64px} }
 /* 교시별 보기 — 학년 탭 */
 .ttgr{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px}
 button.ttgb{padding:5px 13px;font-size:12px;font-weight:800;border:1px solid #cfdcd8;background:#fff;
@@ -725,7 +729,9 @@ var G1_COMMON = {
 /* ═══ 시험 교시 (260827) · 학년 가르기 (260830) ═══
    ★여기 두는 까닭★ 뒤의 <script> 덩이들이 저마다 닫힌 함수(IIFE)라
    그 안에 두면 「수정 제안」 창에서 못 본다. 덩이를 넘어 함께 쓰는 것만 여기 둔다. */
-var TT_TIME = [["1교시", "08:35", "08:40~09:30"], ["2교시", "09:45", "09:50~10:40"], ["3교시", "10:55", "11:00~11:50"], ["4교시", "12:05", "12:10~13:00"]];
+/* 260902 — 학교마다 교시 시간이 달라 시간은 적지 않는다. 교시 이름만 쓴다 */
+var TT_TIME = [["1교시","",""],["2교시","",""],["3교시","",""],["4교시","",""],
+               ["5교시","",""],["6교시","",""],["7교시","",""],["8교시","",""]];
 /* 학사일정 행의 학년 값을 실제 학년으로 가른다 — '1~2' → ['1','2'] */
 function planGrades(gk){
   gk=String(gk==null?'':gk).trim();
@@ -1070,7 +1076,16 @@ var AUTH=(function(){
                        ok:{booleanValue:false} }};
     return fetch(base()+'?key='+encodeURIComponent(KEY),
       {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-      .then(function(r){ if(!r.ok) throw 0; return true; });
+      .then(function(r){
+        if(r.ok) return true;
+        /* 260902 — 왜 막혔는지 그대로 들고 나간다. 「보내지 못했습니다」만 뜨면 자리를 못 찾는다 */
+        return r.text().then(function(t){
+          var why='';
+          try{ var j=JSON.parse(t); why=(j.error&&(j.error.status||j.error.message))||''; }
+          catch(e){ why=String(t||'').slice(0,140); }
+          var er=new Error('signup '+r.status); er.code=r.status; er.why=why; throw er;
+        }, function(){ var er=new Error('signup '+r.status); er.code=r.status; er.why=''; throw er; });
+      });
   }
 
   /* ---------- 로그인 ---------- */
@@ -2363,7 +2378,21 @@ var LOGIN=(function(){
           +'</div><div class="acts"><button class="btn ghost" id="lclose">'+(GATE?'로그인 화면으로':'닫기')+'</button></div></div>';
         var xb2=document.getElementById('lx'); if(xb2) xb2.onclick=close;
         document.getElementById('lclose').onclick=function(){ if(GATE) draw('in'); else close(); };
-      }).catch(function(){ go.disabled=false; msg('umsg','보내지 못했습니다. 잠시 뒤 다시 해 주십시오.',1); });
+      }).catch(function(err){
+        go.disabled=false;
+        var c=(err&&err.code)||0, w=(err&&err.why)||'';
+        var t;
+        if(c===403 || /PERMISSION_DENIED/i.test(w))
+          t='<b>서버가 막았습니다 (403 · 권한).</b><br>파이어베이스 규칙에서 <b>members</b> 쓰기가 열려 있는지 보아야 합니다.';
+        else if(c===400)
+          t='<b>보낸 꼴이 맞지 않습니다 (400).</b><br>규칙이 받는 칸 목록과 어긋났을 수 있습니다.';
+        else if(c)
+          t='<b>보내지 못했습니다 ('+c+').</b>';
+        else
+          t='<b>보내지 못했습니다.</b><br>인터넷이 끊겼거나 저장소에 닿지 못했습니다.';
+        msg('umsg', t + (w ? '<br><span style="opacity:.65;font-weight:600">'+esc(w)+'</span>' : '')
+            + '<br><span style="opacity:.65;font-weight:600">이 글자를 그대로 김병진T에게 보여 주시면 바로 잡습니다.</span>', 1);
+      });
     };
   }
 
@@ -2572,7 +2601,7 @@ var SUGGEST=(function(){
           +'</div>'
           +'<div id="pbody"></div>'
           +'<div class="hint"><b>교시 칸에 그 교시에 치는 과목을 적어 주십시오.</b> 한 칸에 한 과목이면 됩니다.<br>'
-          +'한 교시에 여러 과목을 나눠 치면(선택과목) 「경제수학 / 미적분Ⅱ」처럼 빗금으로 적어 주십시오.<br>'
+          +'<b>한 교시에 두 과목을 나눠 치면(선택과목) 오른쪽 둘째 칸에 적어 주십시오.</b> 「/」는 저절로 들어갑니다.<br>'
           +'시험이 없는 교시는 <b>비워 두시면</b> 됩니다. 자습이면 옆의 <b>「자습」</b> 단추를 누르시면 한 번에 들어갑니다.<br>'
           +'교시 수가 모자라면 <b>「＋ 교시 늘리기」</b>를 누르십시오. 다른 학년 것을 <b>베껴서 고치면</b> 훨씬 빠릅니다.<br>'
           +'사진으로 갖고 계시면 그대로 보내 주셔도 됩니다 — 저희가 넣어 드립니다.</div>';
@@ -2760,10 +2789,22 @@ var SUGGEST=(function(){
         if(bk) (bk.items||[]).forEach(function(it){ if(it&&it[0]&&out.indexOf(it[0])<0) out.push(it[0]); });
         return out;
       }
+      /* 260902 — 한 교시에 과목 둘을 따로 받는다. 자료에는 「 / 」로 이어 붙여 한 줄로 넣는다
+         (자료 규격은 그대로라 이미 넣어 둔 학교 것과 보기 화면이 그대로 산다) */
+      function joinTwo(a,b){
+        a=(a||'').trim(); b=(b||'').trim();
+        return b ? (a ? a+' / '+b : b) : a;
+      }
+      function splitTwo(v){
+        var t=String(v||'').split('/');
+        return [ (t[0]||'').trim(), t.slice(1).join('/').trim() ];
+      }
       function grab(){
         var m={};
         body.querySelectorAll('.pin3').forEach(function(x){
-          (m[x.dataset.d]=m[x.dataset.d]||[])[+x.dataset.p]=(x.value||'').trim(); });
+          var b2=body.querySelector('.pin3b[data-d="'+x.dataset.d+'"][data-p="'+x.dataset.p+'"]');
+          (m[x.dataset.d]=m[x.dataset.d]||[])[+x.dataset.p]=joinTwo(x.value, b2?b2.value:'');
+        });
         return m;
       }
       function fill(pre){
@@ -2813,11 +2854,14 @@ var SUGGEST=(function(){
             +'<span class="ppno">'+PMAX+'교시까지</span></div>';
           for(var i2=0;i2<PMAX;i2++){
             var t=(typeof TT_TIME!=='undefined'&&TT_TIME[i2])||[(i2+1)+'교시','',''];
-            var vv=val(key,i2);
+            var vv=val(key,i2), tw=splitTwo(vv);
             h+='<div class="pprow"><div class="ppl">'+t[0]+(t[2]?'<span>'+t[2]+'</span>':'')+'</div>'
               +'<input type="text" class="pin3" list="ppsj" data-d="'+key+'" data-p="'+i2+'" '
-              +'placeholder="비우면 시험 없음" value="'+esc(vv)+'">'
-              +'<button type="button" class="ppj'+(vv==='자습'?' on':'')+'" data-d="'+key+'" data-p="'+i2+'">자습</button></div>';
+              +'placeholder="비우면 시험 없음" value="'+esc(tw[0])+'">'
+              +'<span class="ppslash">/</span>'
+              +'<input type="text" class="pin3b" list="ppsj" data-d="'+key+'" data-p="'+i2+'" '
+              +'placeholder="같은 교시 둘째 과목(없으면 비움)" value="'+esc(tw[1])+'">'
+              +'<button type="button" class="ppj'+(tw[0]==='자습'?' on':'')+'" data-d="'+key+'" data-p="'+i2+'">자습</button></div>';
           }
           h+='</div>';
           d.setDate(d.getDate()+1);
@@ -2843,6 +2887,10 @@ var SUGGEST=(function(){
         body.querySelectorAll('.pin3').forEach(function(x){ x.oninput=function(){
           var bb=body.querySelector('button.ppj[data-d="'+x.dataset.d+'"][data-p="'+x.dataset.p+'"]');
           if(bb) bb.classList.toggle('on', x.value==='자습');
+        }; });
+        /* 260902 — 둘째 칸에 「/」를 넣어도 자료가 안 깨지게 지운다 */
+        body.querySelectorAll('.pin3b').forEach(function(x){ x.oninput=function(){
+          if(x.value.indexOf('/')>=0) x.value=x.value.replace(/\//g,' ').replace(/\s+/g,' ');
         }; });
       }
       p.querySelectorAll('input[name=pgr],input[name=pex]').forEach(function(x){
@@ -3054,7 +3102,9 @@ var SUGGEST=(function(){
         body.days={}; body.periods={};
         var PV={};
         p.querySelectorAll('.pin3').forEach(function(x){
-          (PV[x.dataset.d]=PV[x.dataset.d]||[])[+x.dataset.p]=(x.value||'').trim(); });
+          var b2=p.querySelector('.pin3b[data-d="'+x.dataset.d+'"][data-p="'+x.dataset.p+'"]');
+          var a1=(x.value||'').trim(), a2=b2?(b2.value||'').trim():'';
+          (PV[x.dataset.d]=PV[x.dataset.d]||[])[+x.dataset.p]= a2 ? (a1? a1+' / '+a2 : a2) : a1; });
         PDAYS.forEach(function(d2){
           var a=(PV[d2]||[]).slice();
           for(var i3=0;i3<a.length;i3++) if(a[i3]==null) a[i3]='';
@@ -3924,8 +3974,8 @@ function ttOne(set, hideG){
     ? (set.note?'<div class="ttg"><span class="ttq" style="margin-left:0">'+ttEsc(set.note)+'</span></div>':'')
     : '<div class="ttg">'+ttEsc(set.g)+(set.note?' <span class="ttq">'+ttEsc(set.note)+'</span>':'')+'</div>';
   h+='<div class="ttwrap"><table class="tt"><thead><tr><th class="ttd">날짜</th>';
-  for(var i=0;i<maxp;i++){ var t=TT_TIME[i]||['','',''];
-    h+='<th>'+t[0]+'<span class="ttt">'+t[2]+'</span></th>'; }
+  for(var i=0;i<maxp;i++){ var t=TT_TIME[i]||[(i+1)+'교시','',''];
+    h+='<th>'+(t[0]||((i+1)+'교시'))+(t[2]?'<span class="ttt">'+t[2]+'</span>':'')+'</th>'; }
   h+='</tr></thead><tbody>';
   set.days.forEach(function(d){
     h+='<tr><td class="ttd">'+ttMd(d[0])+'<span class="ttw">('+ttWd(d[0])+')</span></td>';
@@ -3946,7 +3996,7 @@ function ttHtml(school, gradeKey, exIdx){
   }
   t.sets.forEach(function(st,k){
     h+='<div class="ttset'+(many&&k>0?' off':'')+'" data-ttset="'+k+'">'+ttOne(st,many)+'</div>'; });
-  h+='<div class="tth">예비령 '+TT_TIME[0][1]+' · 한 교시 50분 · 빈칸은 그 교시에 시험이 없다는 뜻입니다.'
+  h+='<div class="tth">빈칸은 그 교시에 시험이 없다는 뜻입니다. 교시 시간은 학교마다 다르니 학교 안내를 보십시오.'
    +(t.src?'<br>'+ttEsc(t.src)+(t.fromPlan?'':' 를 그대로 옮긴 것입니다.'):'')+'</div></div>';
   return h;
 }
