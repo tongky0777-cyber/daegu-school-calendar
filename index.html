@@ -1309,17 +1309,18 @@ var ADMIN=(function(){
     var wait=all.filter(function(m){return !m.ok;});
     var okd=all.filter(function(m){return m.ok;});
     p.innerHTML=head('승인 관리')
-      +'<div class="hint" style="margin:0 0 12px">승인하시면 바로 들어오실 수 있습니다. '
+      +'<div class="hint" style="margin:0 0 8px">승인하시면 바로 들어오실 수 있습니다. '
       +'취소하시면 다음에 여실 때 다시 막힙니다.<br>'
       +'잘못 낸 신청은 <b>「지우기」</b>로 아주 없앨 수 있습니다 — 두 번 눌러야 지워지고, <b>되돌릴 수 없습니다.</b></div>'
+      +'<div class="acts" style="margin:0 0 6px"><button class="btn ghost" id="arel">새로 받기</button>'
+      +'<button class="btn ghost" id="achk">지우기 되는지 보기</button>'
+      +'<button class="btn ghost" id="aout">관리자 로그아웃</button></div>'
+      +'<div class="hint" id="amsg" style="min-height:20px;margin:0 0 12px"></div>'
       +'<label class="fl">승인 기다리는 분 '+wait.length+'명</label>'
       +(wait.length? wait.map(row).join('') : '<div class="hint">없습니다.</div>')
       +'<label class="fl" style="margin-top:18px">쓰고 계신 분 '+okd.length+'명</label>'
       +(okd.length? okd.map(row).join('') : '<div class="hint">아직 없습니다.</div>')
-      +'<div class="acts"><button class="btn ghost" id="arel">새로 받기</button>'
-      +'<button class="btn ghost" id="achk">지우기 되는지 보기</button>'
-      +'<button class="btn ghost" id="aout">관리자 로그아웃</button></div>'
-      +'<div class="hint" id="amsg"></div></div>';
+      +'</div>';
     bindX();
     document.getElementById('arel').onclick=function(){
       if(window.DGWATCH) DGWATCH.once();
@@ -1363,8 +1364,10 @@ var ADMIN=(function(){
             document.getElementById('amsg').textContent='한 번 더 누르면 아주 지워집니다. 되돌릴 수 없습니다. (그만두시려면 다른 곳을 누르십시오)';
             return;
           }
-          b.disabled=true; b.textContent='…';
-          document.getElementById('amsg').textContent='지우는 중… ('+String(doc).split('/').pop()+')';
+          b.disabled=true; b.textContent='지우는 중…';
+          var am0=document.getElementById('amsg');
+          if(am0){ am0.innerHTML='<b>지우는 중…</b> ('+esc(String(doc).split('/').pop())+')';
+                   am0.scrollIntoView({block:'nearest'}); }
           AUTH.del(doc).then(function(){ return AUTH.load(); })
             .then(function(){
               if(window.DGWATCH) DGWATCH.once();
