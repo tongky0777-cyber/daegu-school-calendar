@@ -3726,6 +3726,28 @@ var ACADEMIES=[{
     '편안한 질문 분위기와 데이터 기반 오답·복습 관리',
     '초등 사고력부터 고등 내신까지 이어지는 학교별 수학 관리'
   ]
+},{
+  id:'rowoonmath',
+  registeredAt:'2026-09-02',
+  name:'로운수학학원',
+  address:'대구시 동구 국채보상로 807-2 2층',
+  phone:'010-4252-0626',
+  kakao:'',
+  blog:'https://blog.naver.com/rowoon_math',
+  instagram:'',
+  homepage:'',
+  audience:'초등4~고등',
+  subjects:'수학',
+  targets:['경신중학교','대구동중학교','신명여자중학교','대구중앙고등학교','청구고등학교'],
+  extraTargets:['오성중학교','청구중학교','대구중앙중학교','경북대학교사범대학부설고','대구남산고등학교'],
+  recruiting:['초등 집중반','청구고 내신반'],
+  events:[],
+  applyNote:'상담 테스트 신청은 신청폼 작성',
+  strengths:[
+    '개념 이해부터 탄탄히 쌓아가는 수업',
+    '디테일한 문제 분석과 오답 관리',
+    '청구고·중앙고 분석 기반 내신반 운영'
+  ]
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
 function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
@@ -3744,7 +3766,7 @@ function academyById(id){
 }
 function acadEvent(a){
   var e=(a.events||[])[0];
-  if(!e) return '';
+  if(!e) return a.applyNote||'';
   return e.title+(e.target?' · '+e.target:'')+(e.apply?' · '+e.apply:'');
 }
 function acadTeaserHtml(g){
@@ -3797,8 +3819,8 @@ function openAcademy(id, school){
     +'<tr><td>대상</td><td>'+esc(a.audience)+'</td></tr>'
     +'<tr><td>과목</td><td>'+esc(a.subjects)+'</td></tr></table>'
     +'<h3>'+esc(school||'타깃 학교')+' 학부모에게 보일 내용</h3>'
-    +'<div class="acadcard hot"><div class="acadname">'+esc(ev?ev.title:'현재 모집 중인 반')+'</div>'
-    +'<div class="acadmeta">'+(ev?fmt(ev.date)+' · '+esc(ev.target)+' · 신청방법: '+esc(ev.apply):esc((a.recruiting||[]).join(' · ')))+'</div></div>'
+    +'<div class="acadcard hot"><div class="acadname">'+esc(ev?ev.title:(a.applyNote?'상담 안내':'현재 모집 중인 반'))+'</div>'
+    +'<div class="acadmeta">'+(ev?fmt(ev.date)+' · '+esc(ev.target)+' · 신청방법: '+esc(ev.apply):esc(a.applyNote||(a.recruiting||[]).join(' · ')))+'</div></div>'
     +'<h3>모집 중</h3><div class="acadtargets">'+(a.recruiting||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')+'</div>'
     +'<h3>타깃 학교</h3><div class="acadtargets">'+(a.targets||[]).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
     +(a.extraTargets||[]).map(function(x){ return '<span class="acadchip">'+esc(x)+'</span>'; }).join('')+'</div>'
