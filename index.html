@@ -3775,7 +3775,7 @@ function acadTeaserHtml(g){
   var names=ls.slice(0,2).map(function(a){ return a.name; }).join(' · ');
   if(ls.length>2) names+=' 외 '+(ls.length-2);
   return '<div class="acad-teaser"><b>이 학교권 등록 학원 '+ls.length+'곳</b>'
-    +'<span class="acad-names">'+esc(names)+'</span> <button type="button" data-acad-open="'+esc(ls[0].id)+'" data-school="'+esc(g.name)+'">보기</button></div>';
+    +'<span class="acad-names">'+esc(names)+'</span> <button type="button" data-acad-list="'+esc(g.name)+'">보기</button></div>';
 }
 function acadSchoolHtml(g){
   var ls=academiesForSchool(g.name);
@@ -3796,6 +3796,34 @@ function acadSchoolHtml(g){
       +'</div></div>';
   });
   return h+'<div class="hint">학교별 학원 정보는 등록 내용과 설명회·특강 일정을 확인한 뒤 보여 드립니다.</div></div>';
+}
+function openAcademyList(school){
+  var p=document.getElementById('panel');
+  var ls=academiesForSchool(school);
+  if(!ls.length) return;
+  OPENKEY=null;
+  p.classList.remove('wide');
+  var h='<div class="ph"><div><h2>'+esc(school)+' 학교권 학원</h2>'
+    +'<div class="ctag"><span class="tag bk">등록 '+ls.length+'곳</span><span class="tag">설명회·모집반 확인</span></div></div>'
+    +'<button class="x" id="x">×</button></div><div class="pb">'
+    +'<div class="hint" style="margin:0 0 10px">학원명을 눌러 상세 정보와 상담 링크를 확인하세요.</div>';
+  ls.forEach(function(a,i){
+    var event=acadEvent(a)||a.audience;
+    h+='<div class="acadcard '+(i===0?'hot':'')+'"><div class="acadmini">'
+      +'<div class="acadrank">'+(i+1)+'</div>'
+      +'<div><div class="acadname">'+esc(a.name)+'</div>'
+      +'<div class="acadmeta">'+esc(event)+'<br>'+esc(a.audience)+' · '+esc(a.subjects)+'</div>'
+      +'<div class="acadchips">'+(a.recruiting||[]).slice(0,3).map(function(x){ return '<span class="acadchip hot">'+esc(x)+'</span>'; }).join('')
+      +'</div></div>'
+      +'<div class="acadacts"><button type="button" class="btn ghost" data-acad-open="'+esc(a.id)+'" data-school="'+esc(school)+'">상세</button></div>'
+      +'</div></div>';
+  });
+  p.innerHTML=h+'</div>';
+  document.getElementById('sheet').classList.add('on');
+  document.getElementById('x').onclick=close;
+  p.querySelectorAll('[data-acad-open]').forEach(function(b){
+    b.onclick=function(e){ e.stopPropagation(); openAcademy(b.dataset.acadOpen, b.dataset.school||school); };
+  });
 }
 function openAcademy(id, school){
   var a=academyById(id), p=document.getElementById('panel');
@@ -4481,6 +4509,9 @@ function open(key){
     p.querySelectorAll('[data-acad-open]').forEach(function(b){
       b.onclick=function(e){ e.stopPropagation(); openAcademy(b.dataset.acadOpen, b.dataset.school||g.name); };
     });
+    p.querySelectorAll('[data-acad-list]').forEach(function(b){
+      b.onclick=function(e){ e.stopPropagation(); openAcademyList(b.dataset.acadList||g.name); };
+    });
     bindLog(p, g.name);
     /* 교시별 시간표 여닫기 (260827 더함) */
     Array.prototype.forEach.call(p.querySelectorAll('button.ttb'), function(bt){
@@ -4770,6 +4801,8 @@ document.getElementById('grid').onclick=function(e){
   if(s){ e.stopPropagation(); toggleFav(BYKEY[s.dataset.star]); render(); return; }
   var a=e.target.closest('[data-acad-open]');
   if(a){ e.stopPropagation(); openAcademy(a.dataset.acadOpen, a.dataset.school||''); return; }
+  var al=e.target.closest('[data-acad-list]');
+  if(al){ e.stopPropagation(); openAcademyList(al.dataset.acadList||''); return; }
   var c=e.target.closest('.card'); if(c) open(c.dataset.k); };
 document.querySelectorAll('.vt').forEach(function(b){
   b.onclick=function(){ VIEW=b.dataset.v;
