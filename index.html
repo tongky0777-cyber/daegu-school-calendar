@@ -1330,21 +1330,33 @@ var ADMIN=(function(){
       var am=document.getElementById('amsg');
       am.textContent='재는 중…';
       AUTH.token().then(function(t){
-        var head=String(t||'').split('.')[1]||'';
-        var uid='';
-        try{ uid=JSON.parse(atob(head.replace(/-/g,'+').replace(/_/g,'/'))).user_id||''; }catch(e){}
-        var one=AUTH.list()[0];
-        var path=one? one.doc.replace(/\/[^\/]+$/,'/zzzzNoSuchDoc00000001') : '';
-        if(!path){ am.textContent='잴 자리가 없습니다.'; return; }
-        return fetch('https://firestore.googleapis.com/v1/'+path,
-          {method:'DELETE',headers:{'Authorization':'Bearer '+t}})
-          .then(function(r){ return r.text().then(function(x){
-            var why=''; try{ var j=JSON.parse(x); why=(j.error&&(j.error.status||j.error.message))||'ok'; }catch(e){ why=String(x).slice(0,80); }
-            am.innerHTML='관리자 토큰 '+(t?'있음':'없음')+' · 내 uid <b>'+esc(uid||'(못 읽음)')+'</b><br>'
-              +'없는 자리 지우기 시험 → <b>'+r.status+' · '+esc(why)+'</b><br>'
-              +(r.ok? '<b>지우기가 열려 있습니다.</b> 이제 「지우기」가 됩니다.'
-                    : '<b>아직 막혀 있습니다.</b> 규칙의 uid 와 위 uid 가 같은지 보십시오.');
-          }); });
+        var pay={};
+        try{ pay=JSON.parse(atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){}
+        var uid=pay.user_id||pay.sub||'', exp=pay.exp?new Date(pay.exp*1000):null;
+        var now=new Date();
+        var one=AUTH.list().filter(function(m){return !m.ok;})[0] || AUTH.list()[0];
+        if(!one){ am.textContent='잴 자리가 없습니다.'; return; }
+        var fake=one.doc.replace(/\/[^\/]+$/,'/zzzzNoSuchDoc00000001');
+        function ask(url,opt){ return fetch(url,opt).then(function(r){
+          return r.text().then(function(x){ var w=''; try{var j=JSON.parse(x); w=(j.error&&(j.error.status||j.error.message))||'ok';}catch(e){w=String(x).slice(0,60);} return r.status+' · '+w; }); }); }
+        return Promise.all([
+          /* ㉠ 없는 자리 지우기 */
+          ask('https://firestore.googleapis.com/v1/'+fake,{method:'DELETE',headers:{'Authorization':'Bearer '+t}}),
+          /* ㉡ 있는 자리에 지금 값 그대로 다시 쓰기 — 자료는 안 바뀐다 */
+          ask('https://firestore.googleapis.com/v1/'+one.doc+'?updateMask.fieldPaths=ok',
+              {method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
+               body:JSON.stringify({fields:{ok:{booleanValue:!!one.ok}}})})
+        ]).then(function(a){
+          am.innerHTML='내 uid <b>'+esc(uid||'(못 읽음)')+'</b><br>'
+            +'토큰 만료 '+(exp? esc(exp.toLocaleTimeString()) : '(못 읽음)')+' · 지금 '+esc(now.toLocaleTimeString())
+            +(exp && exp<now ? ' <b style="color:#b0453a">— 이미 지났습니다</b>' : '')+'<br>'
+            +'㉠ 지우기 시험 → <b>'+esc(a[0])+'</b><br>'
+            +'㉡ 고치기 시험 → <b>'+esc(a[1])+'</b><br>'
+            +(a[1].indexOf('200')===0
+               ? (a[0].indexOf('200')===0 ? '<b>둘 다 열렸습니다.</b> 이제 지우기가 됩니다.'
+                                          : '<b>고치기는 되는데 지우기만 막힙니다.</b> 규칙이 아직 안 퍼졌을 수 있습니다 — 1~2분 뒤 다시 눌러 보십시오.')
+               : '<b>고치기도 막힙니다.</b> 관리자 로그인이 서버에 안 먹히고 있습니다. 관리자 로그아웃 뒤 다시 로그인해 주십시오.');
+        });
       }).catch(function(e){
         document.getElementById('amsg').innerHTML='<b>관리자 토큰을 못 얻었습니다.</b> 관리자로 다시 로그인해 주십시오.';
       });
