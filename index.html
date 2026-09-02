@@ -2760,7 +2760,8 @@ var SUGGEST=(function(){
       }
     }
     /* ---------- 시험 시간표 칸 그리기 (260830 — 학년별 · 교시별) ---------- */
-    var PDAYS=[], PMAX=3;
+    /* 260902 — 학교마다 교시 수가 달라 기본을 4교시로 둔다 */
+    var PDAYS=[], PMAX=4;
     function paintPlan(){
       var body=document.getElementById('pbody'); if(!body) return;
       function yrNow(){ return (typeof YEARS!=='undefined')?YEARS[0]:'2026'; }
@@ -2819,7 +2820,7 @@ var SUGGEST=(function(){
         }
         var old=slotOf(s2.gi,s2.gr,ei)||{}, op=old.periods||{}, od=old.days||{};
         if(!pre){
-          PMAX=3;
+          PMAX=4;
           Object.keys(op).forEach(function(d2){ if((op[d2]||[]).length>PMAX) PMAX=(op[d2]||[]).length; });
           if(PMAX>8) PMAX=8;
         }
