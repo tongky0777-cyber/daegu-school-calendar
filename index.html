@@ -1336,30 +1336,35 @@ var ADMIN=(function(){
       AUTH.token().then(function(t){
         var pay={};
         try{ pay=JSON.parse(atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }catch(e){}
-        var uid=pay.user_id||pay.sub||'', exp=pay.exp?new Date(pay.exp*1000):null;
-        var now=new Date();
+        var uid=pay.user_id||pay.sub||'', exp=pay.exp?new Date(pay.exp*1000):null, now=new Date();
         var one=AUTH.list().filter(function(m){return !m.ok;})[0] || AUTH.list()[0];
         if(!one){ am.textContent='잴 자리가 없습니다.'; return; }
-        var fake=one.doc.replace(/\/[^\/]+$/,'/zzzzNoSuchDoc00000001');
+        var P2=(typeof FB_PROJECT!=='undefined')?FB_PROJECT:'';
+        var K2=(typeof FB_KEY!=='undefined')?FB_KEY:'';
+        var cm='https://firestore.googleapis.com/v1/projects/'+P2+'/databases/(default)/documents:commit';
         function ask(url,opt){ return fetch(url,opt).then(function(r){
-          return r.text().then(function(x){ var w=''; try{var j=JSON.parse(x); w=(j.error&&(j.error.status||j.error.message))||'ok';}catch(e){w=String(x).slice(0,60);} return r.status+' · '+w; }); }); }
+          return r.text().then(function(x){ var w=''; try{var j=JSON.parse(x); w=(j.error&&(j.error.status||j.error.message))||'ok';}catch(e){w=String(x).slice(0,50);} return r.status+' · '+w; }); },
+          function(e){ return '못 보냄 · '+String(e).slice(0,40); }); }
+        var H={'Content-Type':'application/json','Authorization':'Bearer '+t};
+        var wr=JSON.stringify({writes:[{update:{name:one.doc,fields:{ok:{booleanValue:!!one.ok}}},updateMask:{fieldPaths:['ok']}}]});
         return Promise.all([
-          /* ㉠ 없는 자리 지우기 */
-          ask('https://firestore.googleapis.com/v1/'+fake,{method:'DELETE',headers:{'Authorization':'Bearer '+t}}),
-          /* ㉡ 있는 자리에 지금 값 그대로 다시 쓰기 — 자료는 안 바뀐다 */
-          ask('https://firestore.googleapis.com/v1/'+one.doc+'?updateMask.fieldPaths=ok',
-              {method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
-               body:JSON.stringify({fields:{ok:{booleanValue:!!one.ok}}})})
+          /* ㉠ 토큰이 살아 있는가 */
+          ask('https://identitytoolkit.googleapis.com/v1/accounts:lookup?key='+encodeURIComponent(K2),
+              {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idToken:t})}),
+          /* ㉡ 열쇠 붙여서 고치기 */
+          ask(cm+'?key='+encodeURIComponent(K2),{method:'POST',headers:H,body:wr}),
+          /* ㉢ 열쇠 없이 고치기 */
+          ask(cm,{method:'POST',headers:H,body:wr})
         ]).then(function(a){
-          am.innerHTML='내 uid <b>'+esc(uid||'(못 읽음)')+'</b><br>'
-            +'토큰 만료 '+(exp? esc(exp.toLocaleTimeString()) : '(못 읽음)')+' · 지금 '+esc(now.toLocaleTimeString())
-            +(exp && exp<now ? ' <b style="color:#b0453a">— 이미 지났습니다</b>' : '')+'<br>'
-            +'㉠ 지우기 시험 → <b>'+esc(a[0])+'</b><br>'
-            +'㉡ 고치기 시험 → <b>'+esc(a[1])+'</b><br>'
-            +(a[1].indexOf('200')===0
-               ? (a[0].indexOf('200')===0 ? '<b>둘 다 열렸습니다.</b> 이제 지우기가 됩니다.'
-                                          : '<b>고치기는 되는데 지우기만 막힙니다.</b> 규칙이 아직 안 퍼졌을 수 있습니다 — 1~2분 뒤 다시 눌러 보십시오.')
-               : '<b>고치기도 막힙니다.</b> 관리자 로그인이 서버에 안 먹히고 있습니다. 관리자 로그아웃 뒤 다시 로그인해 주십시오.');
+          am.innerHTML='내 uid <b>'+esc(uid||'(못 읽음)')+'</b> · 토큰 만료 '+(exp?esc(exp.toLocaleTimeString()):'?')
+            +' · 지금 '+esc(now.toLocaleTimeString())+(exp&&exp<now?' <b style="color:#b0453a">지났음</b>':'')+'<br>'
+            +'㉠ 토큰 살아 있나 → <b>'+esc(a[0])+'</b><br>'
+            +'㉡ 열쇠 붙여 고치기 → <b>'+esc(a[1])+'</b><br>'
+            +'㉢ 열쇠 없이 고치기 → <b>'+esc(a[2])+'</b><br>'
+            +(a[0].indexOf('200')!==0 ? '<b>토큰이 죽었습니다.</b> 관리자 로그아웃 뒤 다시 로그인해 주십시오.'
+              : (a[2].indexOf('200')===0 ? '<b>열쇠를 빼면 됩니다.</b> 그렇게 고치겠습니다.'
+              : (a[1].indexOf('200')===0 ? '<b>열쇠를 붙이면 됩니다.</b>'
+                                         : '<b>둘 다 막힙니다.</b> 이 글자를 그대로 알려 주십시오.')));
         });
       }).catch(function(e){
         document.getElementById('amsg').innerHTML='<b>관리자 토큰을 못 얻었습니다.</b> 관리자로 다시 로그인해 주십시오.';
