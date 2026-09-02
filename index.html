@@ -3748,6 +3748,28 @@ var ACADEMIES=[{
     '디테일한 문제 분석과 오답 관리',
     '청구고·중앙고 분석 기반 내신반 운영'
   ]
+},{
+  id:'ikkeullimmath',
+  registeredAt:'2026-09-02',
+  name:'이끌림수학학원',
+  address:'대구 수성구 범어천로 126 코오롱하늘채 수 상가 207호',
+  phone:'053-759-1020',
+  kakao:'',
+  blog:'',
+  instagram:'',
+  homepage:'https://trendy0831-ui.github.io/dashboard/homepage.html',
+  audience:'초등 · 중등',
+  subjects:'수학',
+  targets:['대구동중학교','신명여자중학교','정화중학교','경신중학교','대구동도초등학교'],
+  extraTargets:['대구동천초등학교'],
+  recruiting:['신명여중 내신대비','대구동중 내신대비'],
+  events:[],
+  applyNote:'상담은 네이버 플레이스 톡톡 이용',
+  strengths:[
+    '원장 직강',
+    '1:1 과외 가능',
+    '오답 분석 후 약점 보완과 학생 밀착 관리'
+  ]
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
 function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
