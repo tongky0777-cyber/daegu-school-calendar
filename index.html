@@ -1195,27 +1195,31 @@ var AUTH=(function(){
   /* 260902 — 잘못 낸 신청을 지운다. 관리자만. 규칙에서도 관리자 uid 로 막혀 있다 */
   function del(docName){
     if(!docName){ var e0=new Error('del 자리없음'); e0.code=0; e0.why='지울 자리를 못 찾았습니다'; return Promise.reject(e0); }
+    /* 260902 — 승인(PATCH)은 되는데 DELETE 만 막히길래, 승인과 같은 결의 commit 로 지운다.
+       commit 은 POST 라 브라우저에서 승인과 똑같이 나간다. */
+    function fail(r,x){
+      var why=''; try{ var j=JSON.parse(x); why=(j.error&&(j.error.status||j.error.message))||''; }catch(e){ why=String(x).slice(0,140); }
+      var er=new Error('del '+r.status); er.code=r.status; er.why=why; return er;
+    }
     return token().then(function(t){
-      return fetch('https://firestore.googleapis.com/v1/'+docName+'?key='+encodeURIComponent(KEY),
-        {method:'DELETE',headers:{'Authorization':'Bearer '+t}})
+      var url='https://firestore.googleapis.com/v1/projects/'+P+'/databases/(default)/documents:commit?key='+encodeURIComponent(KEY);
+      return fetch(url,{method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
+        body:JSON.stringify({writes:[{delete:docName}]})})
       .then(function(r){
-        if(!r.ok) return r;
-        /* 260902 — 파이어베이스는 없는 자리를 지워도 200 을 준다. 정말 사라졌는지 되읽어 본다 */
-        return fetch('https://firestore.googleapis.com/v1/'+docName+'?key='+encodeURIComponent(KEY),
-          {headers:{'Authorization':'Bearer '+t}})
-        .then(function(r2){
-          if(r2.status===404) return r;                       /* 사라졌다 */
-          var er=new Error('del 남음'); er.code=-1;
-          er.why='지웠다는 대답은 왔는데 자리가 그대로 있습니다 (되읽으니 '+r2.status+')';
-          throw er;
-        }, function(){ return r; });
+        return r.text().then(function(x){
+          if(!r.ok) throw fail(r,x);
+          /* 정말 사라졌는지 되읽는다 */
+          return fetch('https://firestore.googleapis.com/v1/'+docName+'?key='+encodeURIComponent(KEY),
+            {headers:{'Authorization':'Bearer '+t}})
+          .then(function(r2){
+            if(r2.status===404) return true;
+            var er=new Error('del 남음'); er.code=-1;
+            er.why='지웠다는 대답은 왔는데 자리가 그대로 있습니다 (되읽으니 '+r2.status+')';
+            throw er;
+          }, function(){ return true; });
+        });
       });
-    }).then(function(r){
-      if(r.ok) return true;
-      return r.text().then(function(x){
-        var why=''; try{ var j=JSON.parse(x); why=(j.error&&(j.error.status||j.error.message))||''; }catch(e){ why=String(x).slice(0,120); }
-        var er=new Error('del '+r.status); er.code=r.status; er.why=why; throw er;
-      }, function(){ var er=new Error('del '+r.status); er.code=r.status; er.why=''; throw er; });
     });
   }
   function list(){ return MEM.slice().sort(function(a,b){ return a.at<b.at?1:-1; }); }
