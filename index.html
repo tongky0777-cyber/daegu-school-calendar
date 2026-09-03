@@ -3938,6 +3938,27 @@ var ACADEMIES=[{
     '1:1 과외 가능',
     '오답 분석 후 약점 보완과 학생 밀착 관리'
   ]
+},{
+  id:'kbjmathlab',
+  registeredAt:'2026-09-03',
+  name:'김병진수학연구소',
+  address:'',
+  phone:'010-6486-5966',
+  kakao:'',
+  blog:'https://blog.naver.com/tongky0777',
+  instagram:'',
+  homepage:'',
+  audience:'중고등',
+  subjects:'고등수학',
+  targets:['경신고등학교','경북고등학교','대륜고등학교','오성고등학교','대구여자고등학교'],
+  extraTargets:['정화여자고등학교','능인고등학교','경북여자고등학교'],
+  recruiting:[],
+  events:[],
+  strengths:[
+    '꼼꼼한 관리',
+    '최적화된 풀이',
+    '다양한 자료 제공'
+  ]
 }];
 function acadSchools(a){ return (a.targets||[]).concat(a.extraTargets||[]); }
 function hasAcadEvent(a){ return !!((a.events||[]).filter(function(e){ return e && e.title; })[0]); }
