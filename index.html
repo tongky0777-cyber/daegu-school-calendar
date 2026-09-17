@@ -2023,8 +2023,12 @@ var WEEK=(function(){
           if(!e||!e[0]) return;
           var s=e[0], en=e[1]||e[0];
           if(en<from || s>to) return;                 // 겹치지 않으면 뺀다
-          out.push({g:g, r:r, gi:gi, grade:r.grade||'', exam:i, what:EXN[i]+'고사',
-                    s:s, e:en, starts:(s>=from && s<=to)});
+          /* 260917 — ★학년마다 한 줄씩★ (김병진T 판정) */
+          var gl=planGrades(r.grade||''); if(!gl.length) gl=[r.grade||''];
+          gl.forEach(function(gg){
+            out.push({g:g, r:r, gi:gi, grade:gg, exam:i, what:EXN[i]+'고사',
+                      s:s, e:en, starts:(s>=from && s<=to)});
+          });
         });
       });
     });
@@ -2039,8 +2043,12 @@ var WEEK=(function(){
         (r.ex||[]).forEach(function(e,i){
           if(!e||!e[0]) return;
           if(e[0]<=to || e[0]>upto) return;
-          out.push({g:g, r:r, gi:gi, grade:r.grade||'', exam:i, what:EXN[i]+'고사',
-                    s:e[0], e:e[1]||e[0]});
+          /* 260917 — ★학년마다 한 줄씩★ (김병진T 판정) */
+          var gl=planGrades(r.grade||''); if(!gl.length) gl=[r.grade||''];
+          gl.forEach(function(gg){
+            out.push({g:g, r:r, gi:gi, grade:gg, exam:i, what:EXN[i]+'고사',
+                      s:e[0], e:e[1]||e[0]});
+          });
         });
       });
     });
@@ -2056,7 +2064,9 @@ var WEEK=(function(){
   function hasPlan(name,grade,sem,ex){
     var y=((DATA.plans||{})[name]||{})['2026']||{};
     var k=sem+ex;
-    function ok(x){ var e=(y[x]||{})[k]; return !!(e && e.days && Object.keys(e.days).length); }
+    function ok(x){ var e=(y[x]||{})[k]; if(!e) return false;
+    /* 260917 — ★참값은 periods 다★. days 는 옛 꼴이라 둘 다 본다 */
+    return !!((e.days && Object.keys(e.days).length) || (e.periods && Object.keys(e.periods).length)); }
     if(ok(grade||'1')) return true;             /* 옛 행키(「1~2」)로 넣어 둔 것 */
     var gl=planGrades(grade);
     return gl.length ? gl.every(ok) : false;    /* 갈린 학년은 다 들어와야 「✓」 */
@@ -4385,8 +4395,12 @@ function soonList(){
         var s=e[0], en=e[1]||e[0];
         var d1=days(s,t), d2=days(en,t);
         if(d1<=7 && d2>=-14){
-          out.push({g:g, grade:r.grade||'', gi:gi, kind:'exam', what:EXN[i]+'고사',
-                    exam:i, s:s, e:en, d:d1, over:(d2<0)});
+          /* 260917 — ★학년마다 한 줄씩 보인다★ (김병진T 판정). 「1~2」 행은 1학년·2학년으로 가른다 */
+          var gl=planGrades(r.grade||''); if(!gl.length) gl=[r.grade||''];
+          gl.forEach(function(gg){
+            out.push({g:g, grade:gg, gi:gi, kind:'exam', what:EXN[i]+'고사',
+                      exam:i, s:s, e:en, d:d1, over:(d2<0)});
+          });
         }
       });
       if(showBreak){
@@ -4413,7 +4427,9 @@ function hasScore(name,grade,sem,ex){
 function hasPlan(name,grade,sem,ex){
   var y=((DATA.plans||{})[name]||{})['2026']||{};
   var k=sem+ex;
-  function ok(x){ var e=(y[x]||{})[k]; return !!(e && e.days && Object.keys(e.days).length); }
+  function ok(x){ var e=(y[x]||{})[k]; if(!e) return false;
+    /* 260917 — ★참값은 periods 다★. days 는 옛 꼴이라 둘 다 본다 */
+    return !!((e.days && Object.keys(e.days).length) || (e.periods && Object.keys(e.periods).length)); }
   if(ok(grade||'1')) return true;             /* 옛 행키(「1~2」)로 넣어 둔 것 */
   var gl=planGrades(grade);
   return gl.length ? gl.every(ok) : false;    /* 갈린 학년은 다 들어와야 「✓」 */
