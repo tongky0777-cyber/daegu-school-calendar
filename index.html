@@ -552,7 +552,7 @@ button.ttgb.on{background:#0f7766;color:#fff;border-color:#0f7766}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='260819-1604';</script>
+<script>var BUILDSTAMP='261016-1640';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -1169,7 +1169,7 @@ var AUTH=(function(){
         if(d.localId!==ADM) throw 2;
         saveTok({uid:d.localId, id:d.idToken, rt:d.refreshToken,
                  exp:Date.now()+(+d.expiresIn||3600)*1000-60000});
-        ME={n:'김병진', o:'수경수학학원', r:'admin', admin:true, at:new Date().toISOString()};
+        ME={n:'김병진', o:'김병진수학연구소', r:'admin', admin:true, at:new Date().toISOString()};
         try{ localStorage.setItem('dgcal.who', JSON.stringify(ME)); }catch(e){}
         return 0;
       }).catch(function(e){ return e===2?2:1; });
@@ -4868,7 +4868,7 @@ function openExport(){
   var p=document.getElementById('epanel');
   p.innerHTML='<div class="ph"><h2>인쇄 · 내보내기</h2><button class="x" id="ex">×</button></div><div class="pb">'
    +'<label class="fl">인쇄물에 넣을 학원 이름</label>'
-   +'<input type="text" id="org" placeholder="예: 수경수학학원" value="'+esc(orgNow())+'">'
+   +'<input type="text" id="org" placeholder="예: 김병진수학연구소" value="'+esc(orgNow())+'">'
    +'<div class="hint">'+((ORG===null&&myOrg())
      ? '가입하실 때 적으신 <b>'+esc(myOrg())+'</b>이(가) 들어가 있습니다. 다르게 내시려면 고쳐 주십시오.'
      : '비워 두면 학원 이름 없이 나갑니다. 한 번 넣으면 이 브라우저에 기억해 둡니다.')+'</div>'
