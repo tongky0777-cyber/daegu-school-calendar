@@ -552,7 +552,7 @@ button.ttgb.on{background:#0f7766;color:#fff;border-color:#0f7766}
 <div class="sheet" id="wcsheet"><div class="panel sm" id="wcpanel"></div></div>
 <div class="sheet" id="asheet"><div class="panel sm" id="apanel"></div></div>
 <div id="print"></div>
-<script>var BUILDSTAMP='261016-1640';</script>
+<script>var BUILDSTAMP='261016-1650';</script>
 <script src="neis_key.js" onerror="void 0"></script>
 <script src="fb_key.js" onerror="void 0"></script>
 <script>/* 라이브러리 없이 .xlsx 를 만든다 — ZIP(STORE) + 최소 SpreadsheetML.
@@ -4871,7 +4871,7 @@ function openExport(){
    +'<input type="text" id="org" placeholder="예: 김병진수학연구소" value="'+esc(orgNow())+'">'
    +'<div class="hint">'+((ORG===null&&myOrg())
      ? '가입하실 때 적으신 <b>'+esc(myOrg())+'</b>이(가) 들어가 있습니다. 다르게 내시려면 고쳐 주십시오.'
-     : '비워 두면 학원 이름 없이 나갑니다. 한 번 넣으면 이 브라우저에 기억해 둡니다.')+'</div>'
+     : '비워 두면 학원 이름 없이 나갑니다. ★적으시면 바로 이 브라우저에 기억해 둡니다★ — 따로 「저장」 단추는 없습니다.')+'</div>'
    +'<label class="fl">무엇을 낼까요</label><div class="radio">'
    +'<label><input type="radio" name="tgt" value="fav"'+(favN?' checked':' disabled')+'> 즐겨찾기 '+favN+'개교'+(favN?'':' (비어 있음)')+'</label>'
    +'<label><input type="radio" name="tgt" value="cur"'+(favN?'':' checked')+'> 지금 보이는 목록 '+listN+'개교</label></div>'
@@ -4890,6 +4890,12 @@ function openExport(){
    +'<button class="btn ghost" id="doXls">엑셀 내려받기</button></div>'
    +'<div class="hint">PDF는 인쇄 창에서 «대상»을 «PDF로 저장»으로 고르시면 됩니다. <b>A4 가로</b>로 맞춰 두었습니다.</div></div>';
   document.getElementById('ex').onclick=closeExport;
+  /* 261016 — ★학원 이름은 적으면 바로 저장한다★ (따로 「저장」 단추가 없다) */
+  (function(){
+    var el=document.getElementById('org'); if(!el) return;
+    var saveOrg=function(){ ORG=el.value.trim(); set('dgcal.org',ORG); };
+    el.onchange=saveOrg; el.onblur=saveOrg;
+  })();
   p.querySelectorAll('input[name=fm]').forEach(function(r){
     r.onchange=function(){
       document.getElementById('fmhint').innerHTML = r.value==='cal'
